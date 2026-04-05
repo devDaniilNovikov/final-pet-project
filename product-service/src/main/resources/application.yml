@@ -1,0 +1,71 @@
+server:
+  port: 3001
+  http2:
+    enabled: true
+  compression:
+    enabled: true
+    min-response-size: 1024
+    mime-types: application/json,application/xml,text/html,text/xml,text/plain
+  error:
+    include-message: always
+    include-binding-errors: always
+spring:
+  config:
+    import: optional:file:.env
+
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    password: demo2228
+    username: danilanovikov
+    url: jdbc:postgresql://localhost:5432/postgres
+  liquibase:
+    analytics-enabled: true
+    enabled: true
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        use_sql_comments: true
+
+  application:
+    name: ProductService
+  main:
+    allow-bean-definition-overriding: true
+    lazy-initialization: true
+  data:
+    redis:
+      host: localhost
+      port: 6379
+  cache:
+    redis:
+      time-to-live: 30s
+      use-key-prefix: true
+      cache-null-values: false
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      properties:
+        spring.json.add.type.headers: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+    listener:
+      ack-mode: batch
+  threads:
+    virtual:
+      enabled: true
+app:
+  kafka:
+    events:
+        product-created: product.created
+        product-updated: product.updated
+        product-deleted: product.deleted
+        order-confirmed: order.confirmed
+        order-created: order.created
+        order-cancelled: order.cancelled
+        order-paid: order.paid
+        item-reserved-failed: item.reserved.failed
+        item-reserved: item.released

@@ -1,0 +1,65 @@
+databaseChangeLog:
+  - changeSet:
+      id: 005-add-index-products-seller-id
+      author: dn
+      comment: "Index for findAllBySellerId queries"
+      changes:
+        - createIndex:
+            schemaName: marketplace
+            tableName: products
+            indexName: idx_products_seller_id
+            columns:
+              - column:
+                  name: seller_id
+
+  - changeSet:
+      id: 006-add-index-products-category-id
+      author: dn
+      comment: "Index for findAllByCategoryId queries"
+      changes:
+        - createIndex:
+            schemaName: marketplace
+            tableName: products
+            indexName: idx_products_category_id
+            columns:
+              - column:
+                  name: category_id
+
+  - changeSet:
+      id: 007-add-index-products-status
+      author: dn
+      comment: "Index for filtering products by status"
+      changes:
+        - createIndex:
+            schemaName: marketplace
+            tableName: products
+            indexName: idx_products_status
+            columns:
+              - column:
+                  name: status
+
+  - changeSet:
+      id: 008-add-index-product-images-product-id
+      author: dn
+      comment: "Index for fetching images by product"
+      changes:
+        - createIndex:
+            schemaName: marketplace
+            tableName: product_images
+            indexName: idx_product_images_product_id
+            columns:
+              - column:
+                  name: product_id
+
+  - changeSet:
+      id: 009-add-index-categories-parent-id
+      author: dn
+      comment: "Index for fetching subcategories by parent"
+      changes:
+        - createIndex:
+            schemaName: marketplace
+            tableName: categories
+            indexName: idx_categories_parent_id
+            columns:
+              - column:
+                  name: parent_id

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AmplicodePersistenceUnitSettings">
+    <persistence-units>
+      <persistence-unit moduleName="FinalPetProject.account-service.main" name="Default">
+        <packages>
+          <package value="dn.accountservice" />
+        </packages>
+      </persistence-unit>
+      <persistence-unit moduleName="FinalPetProject.order-service.main" name="Default">
+        <packages>
+          <package value="dn.orderservice" />
+        </packages>
+      </persistence-unit>
+      <persistence-unit moduleName="FinalPetProject.product-service.main" name="Default">
+        <packages>
+          <package value="dn.productservice" />
+        </packages>
+      </persistence-unit>
+    </persistence-units>
+  </component>
+</project>

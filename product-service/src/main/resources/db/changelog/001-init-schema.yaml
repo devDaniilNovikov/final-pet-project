@@ -1,0 +1,122 @@
+databaseChangeLog:
+  - changeSet:
+      id: 001-create-marketplace-schema
+      author: dn
+      changes:
+        - sql:
+            sql: CREATE SCHEMA IF NOT EXISTS marketplace;
+
+  - changeSet:
+      id: 002-create-categories-table
+      author: dn
+      changes:
+        - createTable:
+            schemaName: marketplace
+            tableName: categories
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: name
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: parent_id
+                  type: uuid
+                  constraints:
+                    foreignKeyName: fk_category_parent
+                    references: marketplace.categories(id)
+
+  - changeSet:
+      id: 003-create-products-table
+      author: dn
+      changes:
+        - createTable:
+            schemaName: marketplace
+            tableName: products
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: name
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: description
+                  type: text
+                  constraints:
+                    nullable: false
+              - column:
+                  name: price
+                  type: decimal(19,2)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: quantity
+                  type: integer
+              - column:
+                  name: status
+                  type: varchar(32)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: seller_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: category_id
+                  type: uuid
+                  constraints:
+                    foreignKeyName: fk_product_category
+                    references: marketplace.categories(id)
+              - column:
+                  name: created_at
+                  type: timestamp with time zone
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp with time zone
+
+  - changeSet:
+      id: 004-create-product-images-table
+      author: dn
+      changes:
+        - createTable:
+            schemaName: marketplace
+            tableName: product_images
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: url
+                  type: varchar(512)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: display_order
+                  type: integer
+                  constraints:
+                    nullable: false
+              - column:
+                  name: product_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_image_product
+                    references: marketplace.products(id)
