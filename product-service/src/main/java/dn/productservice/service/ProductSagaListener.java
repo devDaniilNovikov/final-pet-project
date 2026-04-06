@@ -1,11 +1,11 @@
 package dn.productservice.service;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import dn.productservice.entity.ProductEntity;
 import dn.productservice.exception.InvalidProductQuantityException;
 import dn.productservice.exception.ProductNotFoundException;
 import dn.productservice.repository.ProductRepository;
 import dn.shared.event.inventory.InventoryReservationFailedEvent;
 import dn.shared.event.inventory.InventoryReservedEvent;
+import dn.shared.event.order.OrderCancelledEvent;
 import dn.shared.event.order.OrderCreatedEvent;
 import dn.shared.event.order.OrderItemDto;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +17,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import java.text.MessageFormat;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @Component
@@ -28,6 +29,7 @@ public class ProductSagaListener {
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
 
+
     @Value("${app.kafka.events.item-reserved}")
     private String itemReservedEvent;
 
@@ -35,14 +37,13 @@ public class ProductSagaListener {
     private String itemReservedFailedEvent;
 
 
-
-
+    
     @KafkaListener(topics = "${app.kafka.events.order-created}")
     @Transactional(rollbackFor = Exception.class)
     public void handleOrderCreatedEvent(OrderCreatedEvent orderCreatedEvent) {
         Map<UUID, Integer> productMap = orderCreatedEvent.orderItems()
                 .stream()
-                .collect(Collectors.toMap(
+                .collect(Collectors.toConcurrentMap(
                         OrderItemDto::getProductId,
                         OrderItemDto::getQuantity)
                 );
@@ -79,6 +80,34 @@ public class ProductSagaListener {
                     .orderId(orderCreatedEvent.orderId())
                     .build());
         }
+    }
+
+    @KafkaListener(topics = "${app.kafka.events.order-cancelled}")
+    @Transactional(rollbackFor = Exception.class)
+    public void handleOrderCancelledEvent(OrderCancelledEvent event){
+        Map<UUID,Integer> productMap = event.orders()
+                .stream()
+                .collect(Collectors.toConcurrentMap(
+                        OrderItemDto::getProductId,
+                        OrderItemDto::getQuantity
+                ));
+        List<ProductEntity> productEntities = productRepository.findAllById(productMap.keySet());
+        if (productEntities.size() != productMap.size()) {
+            throw new ProductNotFoundException("Products not found");
+        }
+        List<ProductEntity> products = productEntities.stream()
+                    .map(productEntity -> {
+                        int quantity = productMap.get(productEntity.getId());
+                        int finalQuantity = productEntity.getQuantity()+quantity;
+                        productEntity.setQuantity(finalQuantity);
+                        return productEntity;
+                    })
+                    .toList();
+        log.info("Charge back is done for products with ids: {}",products.stream()
+                .map(ProductEntity::getId)
+                .toList());
+        productRepository.saveAll(products);
+
     }
 
 }

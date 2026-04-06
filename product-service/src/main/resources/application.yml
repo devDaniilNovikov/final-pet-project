@@ -68,4 +68,6 @@ app:
         order-cancelled: order.cancelled
         order-paid: order.paid
         item-reserved-failed: item.reserved.failed
-        item-reserved: item.released
+        item-reserved: item.reserved
+    custom-topic:
+      product-servive-dlt: product.service.dlt

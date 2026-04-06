@@ -12,7 +12,11 @@ import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
 import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
+import org.springframework.kafka.listener.DefaultErrorHandler;
+import org.springframework.kafka.retrytopic.DeadLetterPublishingRecovererFactory;
+import org.springframework.kafka.retrytopic.DestinationTopic;
 import org.springframework.kafka.support.serializer.JsonSerializer;
+import org.springframework.util.backoff.FixedBackOff;
 
 import java.util.Map;
 
@@ -28,6 +32,11 @@ public class KafkaConfiguration {
     @Value("${app.kafka.events.product-deleted}")
     private String productDeletedEvent;
 
+    @Value("${app.kafka.custom-topics.order-service-dlt}")
+    private String orderDltTopic;
+
+
+
 
     @Bean
     public ProducerFactory<String, Object> defaultKafkaProducerFactory(KafkaProperties properties) {
@@ -42,9 +51,12 @@ public class KafkaConfiguration {
     }
 
     @Bean
-    public DeadLetterPublishingRecoverer deadLetterPublishingRecoverer(){
-        D
+    public DefaultErrorHandler errorOrderHandler(KafkaTemplate<String,Object> kafkaTemplate){
+        DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(kafkaTemplate);
+        FixedBackOff fixedBackOff = new FixedBackOff(1000L,3);
+        return new DefaultErrorHandler(recoverer,fixedBackOff);
     }
+
 
 
     @Bean
@@ -55,6 +67,14 @@ public class KafkaConfiguration {
     @Bean
     public NewTopic productCreatedTopic() {
         return TopicBuilder.name(productCreatedEvent)
+                .replicas(3)
+                .partitions(5)
+                .build();
+    }
+
+    @Bean
+    public NewTopic dltTopic() {
+        return TopicBuilder.name(orderDltTopic)
                 .replicas(3)
                 .partitions(5)
                 .build();

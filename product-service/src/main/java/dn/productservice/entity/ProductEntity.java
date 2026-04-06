@@ -28,6 +28,9 @@ public class ProductEntity {
     @Column(name = "id",nullable = false)
     private UUID id;
 
+    @Column(name = "rating",nullable = false)
+    private Double rating;
+
     @Column(name = "name",nullable = false)
     private String name;
 

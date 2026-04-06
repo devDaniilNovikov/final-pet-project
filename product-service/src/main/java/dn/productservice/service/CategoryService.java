@@ -77,8 +77,8 @@ public class CategoryService {
             log.error("Category list is empty!");
             return ListCategoryResponse.builder()
                     .categories(Collections.emptyList())
-                    .totalPages(page)
-                    .currentPage(size)
+                    .totalPages(0)
+                    .currentPage(page)
                     .build();
         }
         return categoryMapper.toListResponse(categoryList);

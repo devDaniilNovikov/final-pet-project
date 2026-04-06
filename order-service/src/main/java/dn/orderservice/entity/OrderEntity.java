@@ -42,7 +42,7 @@ public class OrderEntity {
             CascadeType.MERGE,
             CascadeType.PERSIST,
             CascadeType.REFRESH
-    })
+    },fetch = FetchType.LAZY)
     private List<OrderItemEntity> orderItemEntities;
 
     @CreationTimestamp

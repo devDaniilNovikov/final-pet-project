@@ -71,3 +71,5 @@ app:
       item-reserved: item.released
       payment-success: payment.success
       payment-failed: payment.failed
+    custom-topics:
+     order-service-dlt: order.service.dlt

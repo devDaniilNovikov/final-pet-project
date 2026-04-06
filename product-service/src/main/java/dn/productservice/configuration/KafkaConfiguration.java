@@ -11,9 +11,11 @@ import org.springframework.kafka.config.TopicBuilder;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
+import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
+import org.springframework.kafka.listener.DefaultErrorHandler;
 import org.springframework.kafka.support.serializer.JsonSerializer;
+import org.springframework.util.backoff.FixedBackOff;
 
-import java.util.HashMap;
 import java.util.Map;
 
 @Configuration
@@ -31,6 +33,9 @@ public class KafkaConfiguration {
     @Value("${app.kafka.events.payment-failed}")
     private String paymentFailedEvent;
 
+    @Value("${app.kafka.custom-topic.product-servive-dlt}")
+    private String productDltTopic;
+
 
     @Bean
     public ProducerFactory<String, Object> defaultKafkaProducerFactory(KafkaProperties properties) {
@@ -42,6 +47,14 @@ public class KafkaConfiguration {
         props.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
         props.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, 1);
         return new DefaultKafkaProducerFactory<>(props);
+    }
+
+    @Bean
+    public DefaultErrorHandler productErrorHandler(KafkaTemplate<String,Object> kafkaTemplate){
+        DeadLetterPublishingRecoverer deadLetterPublishingRecoverer = new DeadLetterPublishingRecoverer(kafkaTemplate);
+        FixedBackOff fixedBackOff = new FixedBackOff(1000,3);
+        return new DefaultErrorHandler(deadLetterPublishingRecoverer,fixedBackOff);
+
     }
 
 
@@ -63,6 +76,14 @@ public class KafkaConfiguration {
         return TopicBuilder.name(itemReservedFailedEvent)
                 .replicas(3)
                 .partitions(5)
+                .build();
+    }
+
+    @Bean
+    public NewTopic productDltTopic(){
+        return TopicBuilder.name(productDltTopic)
+                .replicas(3)
+                .partitions(6)
                 .build();
     }
 
