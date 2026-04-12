@@ -1,0 +1,52 @@
+databaseChangeLog:
+  - changeSet:
+      id: 004-add-index-orders-buyer-id
+      author: dn
+      comment: "Index for fetching orders by buyer"
+      changes:
+        - createIndex:
+            schemaName: marketplace
+            tableName: orders
+            indexName: idx_orders_buyer_id
+            columns:
+              - column:
+                  name: buyer_id
+
+  - changeSet:
+      id: 005-add-index-orders-status
+      author: dn
+      comment: "Index for filtering orders by status"
+      changes:
+        - createIndex:
+            schemaName: marketplace
+            tableName: orders
+            indexName: idx_orders_status
+            columns:
+              - column:
+                  name: order_status
+
+  - changeSet:
+      id: 006-add-index-order-items-order-id
+      author: dn
+      comment: "Index for fetching items by order"
+      changes:
+        - createIndex:
+            schemaName: marketplace
+            tableName: order_items
+            indexName: idx_order_items_order_id
+            columns:
+              - column:
+                  name: order_id
+
+  - changeSet:
+      id: 007-add-index-order-items-product-id
+      author: dn
+      comment: "Index for finding order items by product"
+      changes:
+        - createIndex:
+            schemaName: marketplace
+            tableName: order_items
+            indexName: idx_order_items_product_id
+            columns:
+              - column:
+                  name: product_id

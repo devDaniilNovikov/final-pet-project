@@ -6,7 +6,7 @@ import dn.productservice.dto.category.ListCategoryResponse;
 import dn.productservice.entity.CategoryEntity;
 import dn.productservice.exception.CategoryNotFoundException;
 import dn.productservice.mapper.CategoryMapper;
-import dn.productservice.mapper.IdConverter;
+import dn.productservice.utils.IdConverter;
 import dn.productservice.repository.CategoryRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,7 +26,7 @@ public class CategoryService {
 
     private final CategoryRepository categoryRepository;
     private final CategoryMapper categoryMapper;
-    private final IdConverter idMapper;
+
 
 
     @Transactional
@@ -39,7 +39,7 @@ public class CategoryService {
     public void updateCategory(String id,
                                CategoryRequest categoryRequest) {
         CategoryEntity categoryForUpdate = categoryRepository.findById(
-                idMapper.fromString(id))
+                        IdConverter.fromString(id))
                 .orElseThrow(CategoryNotFoundException::new);
         categoryMapper.updateEntity(categoryRequest,categoryForUpdate);
         categoryRepository.save(categoryForUpdate);
@@ -48,7 +48,7 @@ public class CategoryService {
 
     @Transactional
     public void deleteCategory(String id) {
-        categoryRepository.findById(idMapper.fromString(id))
+        categoryRepository.findById(IdConverter.fromString(id))
                 .stream()
                 .map(CategoryEntity::getId)
                 .forEach(categoryRepository::deleteById);
@@ -57,7 +57,7 @@ public class CategoryService {
     @Transactional
     public void deleteCategory(List<String> id){
         List<UUID> uuids = id.stream()
-                .map(idMapper::fromString)
+                .map(IdConverter::fromString)
                 .toList();
         categoryRepository.deleteAllByIdInBatch(uuids);
     }
@@ -65,7 +65,7 @@ public class CategoryService {
 
     public CategoryResponse getCategoryById(String id) {
         return categoryMapper.toResponse(
-                categoryRepository.findById(idMapper.fromString(id))
+                categoryRepository.findById(IdConverter.fromString(id))
                 .orElseThrow(CategoryNotFoundException::new));
     }
 

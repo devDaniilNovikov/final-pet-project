@@ -6,7 +6,7 @@ import dn.productservice.dto.category.ListCategoryResponse;
 import dn.productservice.entity.CategoryEntity;
 import dn.productservice.exception.CategoryNotFoundException;
 import dn.productservice.mapper.CategoryMapper;
-import dn.productservice.mapper.IdConverter;
+import dn.productservice.utils.IdConverter;
 import dn.productservice.repository.CategoryRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -33,7 +33,6 @@ class CategoryServiceTest {
 
     @Mock private CategoryRepository categoryRepository;
     @Mock private CategoryMapper categoryMapper;
-    @Mock private IdConverter idMapper;
 
     @InjectMocks
     private CategoryService categoryService;
@@ -57,7 +56,6 @@ class CategoryServiceTest {
                 .name("Electronics")
                 .build();
 
-        when(idMapper.fromString(categoryIdStr)).thenReturn(categoryId);
     }
 
     @Nested
@@ -161,7 +159,6 @@ class CategoryServiceTest {
             UUID id2 = UUID.randomUUID();
             List<String> ids = List.of(categoryIdStr, id2.toString());
 
-            when(idMapper.fromString(id2.toString())).thenReturn(id2);
 
             categoryService.deleteCategory(ids);
 
@@ -218,7 +215,7 @@ class CategoryServiceTest {
             expected.setCategories(List.of(categoryResponse));
 
             when(categoryRepository.findAll(pageable)).thenReturn(page);
-            when(categoryMapper.toListResponse(List.of(categoryEntity))).thenReturn(expected);
+            when(categoryMapper.toListResponse(page)).thenReturn(expected);
 
             ListCategoryResponse result = categoryService.findAll(0, 10);
 
@@ -233,11 +230,7 @@ class CategoryServiceTest {
             var pageable = PageRequest.of(0, 10);
             var emptyPage = new PageImpl<CategoryEntity>(Collections.emptyList(), pageable, 0);
 
-            ListCategoryResponse expected = new ListCategoryResponse();
-            expected.setCategories(Collections.emptyList());
-
             when(categoryRepository.findAll(pageable)).thenReturn(emptyPage);
-            when(categoryMapper.toListResponse(Collections.emptyList())).thenReturn(expected);
 
             ListCategoryResponse result = categoryService.findAll(0, 10);
 

@@ -1,5 +1,5 @@
 server:
-  port: 3001
+  port: 3002
   http2:
     enabled: true
   compression:
@@ -45,6 +45,7 @@ spring:
       time-to-live: 30s
       use-key-prefix: true
       cache-null-values: false
+    cache-names: products, product
   kafka:
     bootstrap-servers: localhost:9092
     consumer:
@@ -71,3 +72,7 @@ app:
         item-reserved: item.reserved
     custom-topic:
       product-servive-dlt: product.service.dlt
+  cache:
+    redis:
+       product-name: product
+       products-name: products

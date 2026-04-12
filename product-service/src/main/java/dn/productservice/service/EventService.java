@@ -26,19 +26,32 @@ public class EventService {
 
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
-
-
     public void sendProductCreatedEvent(ProductCreateEvent event) {
-        kafkaTemplate.send(productCreatedEvent, event);
+        kafkaTemplate.send(productCreatedEvent, event.id(), event)
+                .whenComplete((result, ex) -> {
+                    if (ex != null) {
+                        log.error("Failed to send ProductCreatedEvent for productId={}: {}", event.id(), ex.getMessage());
+                    }
+                });
     }
 
     public void sendProductUpdatedEvent(ProductUpdatedEvent event) {
-        kafkaTemplate.send(productUpdatedEvent, event);
+        kafkaTemplate.send(productUpdatedEvent, event.id(), event)
+                .whenComplete((result, ex) -> {
+                    if (ex != null) {
+                        log.error("Failed to send ProductUpdatedEvent for productId={}: {}", event.id(), ex.getMessage());
+                    }
+                });
     }
 
     public void sendProductDeletedEvent(ProductDeletedEvent event) {
-        kafkaTemplate.send(productDeletedEvent, event);
+        String key = event.productId() != null ? event.productId()
+                : (event.ids() != null && !event.ids().isEmpty() ? event.ids().get(0) : null);
+        kafkaTemplate.send(productDeletedEvent, key, event)
+                .whenComplete((result, ex) -> {
+                    if (ex != null) {
+                        log.error("Failed to send ProductDeletedEvent for key={}: {}", key, ex.getMessage());
+                    }
+                });
     }
-
-
 }

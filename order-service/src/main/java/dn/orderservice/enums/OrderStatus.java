@@ -1,4 +1,4 @@
-package dn.orderservice.entity;
+package dn.orderservice.enums;
 
 import java.io.Serializable;
 

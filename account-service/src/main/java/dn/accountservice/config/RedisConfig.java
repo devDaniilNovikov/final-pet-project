@@ -24,13 +24,25 @@ import java.util.concurrent.TimeUnit;
 @Configuration
 public class RedisConfig {
 
-
-
     @Value("${spring.data.redis.host}")
     private String host;
 
     @Value("${spring.data.redis.port}")
     private int port;
+
+    @Value("${custom.cache.redis.account-cache-name}")
+    private String ACCOUNT_CACHE_NAME;
+
+    @Value("${custom.cache.redis.accounts-cache-name}")
+    private String ACCOUNTS_CACHE_NAME;
+
+    @Value("${custom.cache.redis.cache-ttl}")
+    private Duration ttl;
+
+    private static final String CACHE_PREFIX = "#";
+
+
+
 
     @Bean
     public JedisConnectionFactory jedisConnectionFactory() {
@@ -53,14 +65,14 @@ public class RedisConfig {
     @Bean
     public RedisCacheConfiguration  redisCacheConfiguration() {
         return RedisCacheConfiguration.defaultCacheConfig()
-                .entryTtl(Duration.ofSeconds(30))
+                .entryTtl(ttl)
                 .disableCachingNullValues()
-                .computePrefixWith(cacheName -> cacheName+"#");
+                .computePrefixWith(cacheName -> cacheName+CACHE_PREFIX);
     }
 
     @Bean
     public RedisCacheManager redisCacheManager(RedisConnectionFactory redisConnectionFactory) {
-        Set<String> cacheNames = Set.of("account","accounts");
+        Set<String> cacheNames = Set.of(ACCOUNT_CACHE_NAME,ACCOUNTS_CACHE_NAME);
         return RedisCacheManager.builder()
                 .transactionAware()
                 .cacheDefaults(redisCacheConfiguration())

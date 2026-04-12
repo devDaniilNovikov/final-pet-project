@@ -1,0 +1,59 @@
+databaseChangeLog:
+  - changeSet:
+      id: 003-create-outbox-table
+      author: dn
+      changes:
+        - createTable:
+            schemaName: marketplace
+            tableName: outbox
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: aggregate_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: topic
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: payload
+                  type: text
+                  constraints:
+                    nullable: false
+              - column:
+                  name: outbox_status
+                  type: varchar(32)
+                  constraints:
+                    nullable: false
+                  defaultValue: PENDING
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: processed_at
+                  type: timestamp
+
+  - changeSet:
+      id: 003-create-outbox-indexes
+      author: dn
+      changes:
+        - createIndex:
+            indexName: idx_outbox_status_created_at
+            schemaName: marketplace
+            tableName: outbox
+            columns:
+              - column:
+                  name: outbox_status
+              - column:
+                  name: created_at
+

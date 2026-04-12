@@ -11,7 +11,7 @@ import dn.productservice.event.ProductCreateEvent;
 import dn.productservice.event.ProductDeletedEvent;
 import dn.productservice.event.ProductUpdatedEvent;
 import dn.productservice.exception.ProductNotFoundException;
-import dn.productservice.mapper.IdConverter;
+import dn.productservice.utils.IdConverter;
 import dn.productservice.mapper.ProductImageMapper;
 import dn.productservice.mapper.ProductMapper;
 import dn.productservice.repository.CategoryRepository;
@@ -48,8 +48,6 @@ class ProductServiceTest {
     @Mock private ProductMapper productMapper;
     @Mock private ProductImageMapper productImageMapper;
     @Mock private EventService eventService;
-    @Mock private IdConverter idMapper;
-
     @InjectMocks
     private ProductService productService;
 
@@ -79,9 +77,7 @@ class ProductServiceTest {
                 .price(BigDecimal.valueOf(99.99))
                 .build();
 
-        when(idMapper.fromString(productIdStr)).thenReturn(productId);
     }
-
     @Nested
     @DisplayName("createProduct")
     class CreateProduct {
@@ -300,6 +296,7 @@ class ProductServiceTest {
         @Test
         @DisplayName("должен удалить продукт и отправить событие")
         void shouldDeleteAndSendEvent() {
+            when(productRepository.existsById(productId)).thenReturn(true);
             productService.deleteById(productIdStr);
 
             verify(productRepository).deleteById(productId);
@@ -319,7 +316,9 @@ class ProductServiceTest {
             List<String> ids = List.of(productIdStr, id2.toString());
             List<UUID> uuids = List.of(productId, id2);
 
-            when(idMapper.fromStringList(ids)).thenReturn(uuids);
+            ProductEntity productEntity2 = new ProductEntity();
+            productEntity2.setId(id2);
+            when(productRepository.findAllById(uuids)).thenReturn(List.of(productEntity, productEntity2));
 
             productService.deleteByIds(ids);
 
@@ -344,7 +343,6 @@ class ProductServiceTest {
             expected.setProducts(List.of(productResponse));
             expected.setTotalElements(1);
 
-            when(idMapper.fromString(sellerIdStr)).thenReturn(sellerId);
             when(productRepository.findAllBySellerId(sellerId, pageable)).thenReturn(page);
             when(productMapper.toListResponse(page)).thenReturn(expected);
 
@@ -369,12 +367,10 @@ class ProductServiceTest {
             ListProductResponse expected = new ListProductResponse();
             expected.setProducts(List.of(productResponse));
 
-            when(idMapper.fromString(categoryIdStr)).thenReturn(categoryId);
             when(productRepository.findAllByCategoryId(categoryId, pageable)).thenReturn(page);
             when(productMapper.toListResponse(page)).thenReturn(expected);
 
             ListProductResponse result = productService.findByCategoryId(categoryIdStr, 5, 0);
-
             assertThat(result.getProducts()).hasSize(1);
         }
     }

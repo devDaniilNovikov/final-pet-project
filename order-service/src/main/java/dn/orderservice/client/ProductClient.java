@@ -1,18 +1,23 @@
 package dn.orderservice.client;
 
-import dn.orderservice.dto.ProductResponse;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.service.annotation.GetExchange;
-import org.springframework.web.service.annotation.HttpExchange;
+import dn.orderservice.dto.response.ProductResponse;
+import org.springframework.web.service.annotation.PostExchange;
 
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 
-public interface ProductClientExchange {
+public interface ProductClient {
 
-    String BASE_URL = "http://localhost:3001/api/v1/products";
+    String URL = "/batch";
 
-    @GetExchange(BASE_URL+"/{id}")
-    ProductResponse getProductResponseById(@PathVariable UUID id);
+    Map<String,String> headers = Map.of("","");
+
+
+    @PostExchange(value = URL,headers = {
+            "",""
+    })
+    Set<ProductResponse> batch(Set<UUID> ids);
 }

@@ -1,10 +1,7 @@
 package dn.orderservice.entity;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 import java.math.BigDecimal;
 import java.util.UUID;
@@ -15,6 +12,7 @@ import java.util.UUID;
 @Entity
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 public class OrderItemEntity {
 
     @Id
@@ -34,9 +32,6 @@ public class OrderItemEntity {
 
     @Column(name = "quantity")
     private Integer quantity;
-
-    @Column(name = "item_name")
-    private String name;
 
     @Column(name = "price_at_purchase")
     private BigDecimal priceAtPurchase;

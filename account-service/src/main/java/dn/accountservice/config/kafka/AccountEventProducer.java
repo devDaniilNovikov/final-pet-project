@@ -19,6 +19,9 @@ public class AccountEventProducer {
     @Value("${custom.kafka.topics.account-banned}")
     private String accountBannedTopic;
 
+    @Value("${custom.kafka.topics.account-unbanned}")
+    private String accountUnbannedTopic;
+
     @Value("${custom.kafka.topics.account-deleted}")
     private String accountDeletedTopic;
 
@@ -33,6 +36,10 @@ public class AccountEventProducer {
 
     public void sendAccountDeletedEvent(AccountDeletedEvent event) {
         kafkaTemplate.send(accountDeletedTopic, event.id(),event);
+    }
+
+    public void sendAccountUnbannedEvent(AccountUnbannedEvent event) {
+        kafkaTemplate.send(accountUnbannedTopic, event.id(),event);
 
     }
 

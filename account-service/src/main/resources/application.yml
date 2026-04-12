@@ -45,6 +45,7 @@ spring:
       time-to-live: 30s
       use-key-prefix: true
       cache-null-values: false
+    cache-names: products, product
   kafka:
     bootstrap-servers: localhost:9092
     producer:
@@ -60,5 +61,12 @@ custom:
       account-created: account.created
       account-banned: account.banned
       account-deleted: account.deleted
+      account-unbanned: account.unbanned
+  cache:
+    redis:
+      account-cache-name: account
+      accounts-cache-name: accounts
+      cache-ttl: 30s
+
 
 

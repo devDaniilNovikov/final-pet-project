@@ -1,7 +1,6 @@
 package dn.productservice.service;
 import dn.productservice.entity.ProductEntity;
 import dn.productservice.exception.InvalidProductQuantityException;
-import dn.productservice.exception.ProductNotFoundException;
 import dn.productservice.repository.ProductRepository;
 import dn.shared.event.inventory.InventoryReservationFailedEvent;
 import dn.shared.event.inventory.InventoryReservedEvent;
@@ -17,7 +16,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import java.text.MessageFormat;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @Component
@@ -49,7 +47,10 @@ public class ProductSagaListener {
                 );
         List<ProductEntity> productEntities = productRepository.findAllById(productMap.keySet());
         if (productEntities.size() != productMap.size()) {
-            throw new ProductNotFoundException("Products not found");
+            kafkaTemplate.send(itemReservedFailedEvent, InventoryReservationFailedEvent.builder()
+                    .orderId(orderCreatedEvent.orderId())
+                    .build());
+            return;
         }
         try {
             List<ProductEntity> productEntityList = productEntities
@@ -93,7 +94,10 @@ public class ProductSagaListener {
                 ));
         List<ProductEntity> productEntities = productRepository.findAllById(productMap.keySet());
         if (productEntities.size() != productMap.size()) {
-            throw new ProductNotFoundException("Products not found");
+            kafkaTemplate.send(itemReservedFailedEvent, InventoryReservationFailedEvent.builder()
+                    .orderId(event.orderId())
+                    .build());
+            return;
         }
         List<ProductEntity> products = productEntities.stream()
                     .map(productEntity -> {

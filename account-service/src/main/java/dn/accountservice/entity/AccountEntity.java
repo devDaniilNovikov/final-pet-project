@@ -52,6 +52,9 @@ public class AccountEntity {
     @Column(name = "phone_number")
     private String phoneNumber;
 
+    @Version
+    private Integer version;
+
     @OneToMany(mappedBy = "account",
             cascade = CascadeType.ALL,
             orphanRemoval = true,
@@ -79,20 +82,16 @@ public class AccountEntity {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
+
         if (o == null || getClass() != o.getClass()) return false;
+
         AccountEntity that = (AccountEntity) o;
-        return new EqualsBuilder()
-                .append(id, that.id)
-                .append(username, that.username)
-                .append(keycloakId, that.keycloakId)
-                .isEquals();
+
+        return new EqualsBuilder().append(keycloakId, that.keycloakId).isEquals();
     }
 
     @Override
     public int hashCode() {
-        return new HashCodeBuilder(17, 37)
-                .append(id)
-                .append(username)
-                .append(keycloakId).toHashCode();
+        return new HashCodeBuilder(17, 37).append(keycloakId).toHashCode();
     }
 }

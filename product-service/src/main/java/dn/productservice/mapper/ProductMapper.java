@@ -47,4 +47,12 @@ public interface ProductMapper {
         response.setCurrentPage(entities.getNumber());
         return response;
     }
+
+    default ListProductResponse toListResponse(List<ProductEntity> entities) {
+        ListProductResponse response = new ListProductResponse();
+        response.setProducts(entities.stream()
+                .map(this::toResponse)
+                .toList());
+        return response;
+    }
 }

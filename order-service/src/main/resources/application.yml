@@ -68,8 +68,11 @@ app:
       product-updated: product.updated
       product-deleted: product.deleted
       item-reserved-failed: item.reserved.failed
-      item-reserved: item.released
+      item-reserved: item.reserved
       payment-success: payment.success
       payment-failed: payment.failed
     custom-topics:
      order-service-dlt: order.service.dlt
+  http:
+    client:
+      product-service: http://localhost:3002/api/v1/products

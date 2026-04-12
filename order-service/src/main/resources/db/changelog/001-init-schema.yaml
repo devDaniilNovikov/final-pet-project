@@ -1,0 +1,88 @@
+databaseChangeLog:
+  - changeSet:
+      id: 001-create-marketplace-schema
+      author: dn
+      changes:
+        - sql:
+            sql: CREATE SCHEMA IF NOT EXISTS marketplace;
+
+  - changeSet:
+      id: 002-create-orders-table
+      author: dn
+      changes:
+        - createTable:
+            schemaName: marketplace
+            tableName: orders
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: buyer_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: price
+                  type: decimal(19,2)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: order_status
+                  type: varchar(32)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp with time zone
+              - column:
+                  name: updated_at
+                  type: timestamp with time zone
+
+  - changeSet:
+      id: 003-create-order-items-table
+      author: dn
+      changes:
+        - createTable:
+            schemaName: marketplace
+            tableName: order_items
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: order_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_order_item_order
+                    references: marketplace.orders(id)
+              - column:
+                  name: product_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: product_name
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: quantity
+                  type: integer
+                  constraints:
+                    nullable: false
+              - column:
+                  name: item_name
+                  type: varchar(255)
+              - column:
+                  name: price_at_purchase
+                  type: decimal(19,2)
+                  constraints:
+                    nullable: false

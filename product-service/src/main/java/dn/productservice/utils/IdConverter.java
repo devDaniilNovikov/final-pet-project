@@ -1,20 +1,21 @@
-package dn.productservice.mapper;
+package dn.productservice.utils;
 
+import lombok.experimental.UtilityClass;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.UUID;
 
-@Component
-public interface IdConverter {
+@UtilityClass
+public class IdConverter {
 
-    default UUID fromString(String uuid) {
+    public UUID fromString(String uuid) {
         return UUID.fromString(uuid);
     }
 
-    default List<UUID> fromStringList(List<String> uuids) {
+    public List<UUID> fromStringList(List<String> uuids) {
         return uuids.stream()
-                .map(this::fromString)
+                .map(IdConverter::fromString)
                 .toList();
     }
 }

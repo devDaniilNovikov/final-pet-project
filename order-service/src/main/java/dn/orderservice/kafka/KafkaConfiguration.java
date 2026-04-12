@@ -23,14 +23,17 @@ import java.util.Map;
 @Configuration
 public class KafkaConfiguration {
 
-    @Value("${app.kafka.events.product-created}")
-    private String productCreatedEvent;
+    @Value("${app.kafka.events.order-created}")
+    private String orderCreatedEvent;
 
-    @Value("${app.kafka.events.product-updated}")
-    private String productUpdatedEvent;
+    @Value("${app.kafka.events.order-confirmed}")
+    private String orderConfirmedEvent;
 
-    @Value("${app.kafka.events.product-deleted}")
-    private String productDeletedEvent;
+    @Value("${app.kafka.events.order-paid}")
+    private String orderPaidEvent;
+
+    @Value("${app.kafka.events.order-cancelled}")
+    private String orderCancelledEvent;
 
     @Value("${app.kafka.custom-topics.order-service-dlt}")
     private String orderDltTopic;
@@ -54,6 +57,7 @@ public class KafkaConfiguration {
     public DefaultErrorHandler errorOrderHandler(KafkaTemplate<String,Object> kafkaTemplate){
         DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(kafkaTemplate);
         FixedBackOff fixedBackOff = new FixedBackOff(1000L,3);
+        recoverer.setTimeoutBuffer(1);
         return new DefaultErrorHandler(recoverer,fixedBackOff);
     }
 
@@ -65,8 +69,8 @@ public class KafkaConfiguration {
     }
 
     @Bean
-    public NewTopic productCreatedTopic() {
-        return TopicBuilder.name(productCreatedEvent)
+    public NewTopic orderCreatedTopic() {
+        return TopicBuilder.name(orderCreatedEvent)
                 .replicas(3)
                 .partitions(5)
                 .build();
@@ -81,16 +85,24 @@ public class KafkaConfiguration {
     }
 
     @Bean
-    public NewTopic productUpdatedTopic() {
-        return TopicBuilder.name(productUpdatedEvent)
+    public NewTopic orderConfirmedTopic() {
+        return TopicBuilder.name(orderConfirmedEvent)
                 .replicas(3)
                 .partitions(5)
                 .build();
     }
 
     @Bean
-    public NewTopic productDeletedTopic() {
-        return TopicBuilder.name(productDeletedEvent)
+    public NewTopic orderPaidTopic() {
+        return TopicBuilder.name(orderPaidEvent)
+                .replicas(3)
+                .partitions(5)
+                .build();
+    }
+
+    @Bean
+    public NewTopic orderCancelledTopic() {
+        return TopicBuilder.name(orderCancelledEvent)
                 .replicas(3)
                 .partitions(5)
                 .build();

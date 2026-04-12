@@ -28,9 +28,6 @@ public class ProductEntity {
     @Column(name = "id",nullable = false)
     private UUID id;
 
-    @Column(name = "rating",nullable = false)
-    private Double rating;
-
     @Column(name = "name",nullable = false)
     private String name;
 
@@ -51,7 +48,7 @@ public class ProductEntity {
     @Column(name = "updated_at")
     private Instant updatedAt;
 
-    @Column(name = "quantity")
+    @Column(name = "quantity", nullable = false)
     private Integer quantity;
 
     @OneToMany(mappedBy = "product",orphanRemoval = true,cascade = CascadeType.ALL)
@@ -65,12 +62,15 @@ public class ProductEntity {
     @Column(name = "status",nullable = false)
     private ProductStatus status;
 
+    @Column(name = "rating")
+    private Double rating;
+
     @Override
     public boolean equals(Object o) {
         if (o == null || getClass() != o.getClass()) return false;
 
         ProductEntity that = (ProductEntity) o;
-        return id.equals(that.id);
+        return Objects.equals(id, that.id);
     }
 
     @Override

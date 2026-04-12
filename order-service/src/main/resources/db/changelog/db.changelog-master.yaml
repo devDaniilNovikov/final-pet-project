@@ -4,4 +4,4 @@ databaseChangeLog:
   - include:
       file: db/changelog/002-add-indexes.yaml
   - include:
-      file: db/changelog/003-add-rating-column.yaml
+      file: db/changelog/003-create-outbox-table.yaml

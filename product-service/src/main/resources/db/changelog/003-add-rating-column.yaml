@@ -9,5 +9,5 @@ databaseChangeLog:
             columns:
               - column:
                   name: rating
-                  type: numeric(3, 2)
+                  type: float8
 
