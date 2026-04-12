@@ -1,0 +1,13 @@
+databaseChangeLog:
+  - changeSet:
+      id: add-rating-to-products
+      author: danilanovikov
+      changes:
+        - addColumn:
+            tableName: products
+            schemaName: marketplace
+            columns:
+              - column:
+                  name: rating
+                  type: numeric(3, 2)
+

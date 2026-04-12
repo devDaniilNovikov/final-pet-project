@@ -1,0 +1,224 @@
+package dn.orderservice;
+
+import dn.orderservice.entity.OrderEntity;
+import dn.orderservice.enums.OrderStatus;
+import dn.orderservice.repository.OrderRepository;
+import dn.shared.event.inventory.InventoryReservationFailedEvent;
+import dn.shared.event.inventory.InventoryReservedEvent;
+import dn.shared.event.order.OrderCancelledEvent;
+import dn.shared.event.order.OrderConfirmedEvent;
+import dn.shared.event.order.OrderPaidEvent;
+import dn.shared.event.payment.PaymentFailedEvent;
+import dn.shared.event.payment.PaymentSuccessEvent;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.common.serialization.StringDeserializer;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.listener.ContainerProperties;
+import org.springframework.kafka.listener.KafkaMessageListenerContainer;
+import org.springframework.kafka.listener.MessageListener;
+import org.springframework.kafka.support.serializer.JsonDeserializer;
+import org.springframework.kafka.test.EmbeddedKafkaBroker;
+import org.springframework.kafka.test.context.EmbeddedKafka;
+import org.springframework.kafka.test.utils.ContainerTestUtils;
+import org.springframework.kafka.test.utils.KafkaTestUtils;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+
+import java.math.BigDecimal;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
+
+@SpringBootTest
+@EmbeddedKafka(partitions = 1, brokerProperties = { "listeners=PLAINTEXT://localhost:9092", "port=9092" })
+@Testcontainers
+@ActiveProfiles("test")
+public class OrderSagaListenerIT {
+
+    @Container
+    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:15-alpine");
+
+    @DynamicPropertySource
+    static void configureProperties(DynamicPropertyRegistry registry) {
+        registry.add("spring.datasource.url", postgres::getJdbcUrl);
+        registry.add("spring.datasource.username", postgres::getUsername);
+        registry.add("spring.datasource.password", postgres::getPassword);
+        registry.add("spring.liquibase.enabled", () -> "true");
+    }
+
+    @Autowired
+    private EmbeddedKafkaBroker embeddedKafkaBroker;
+
+    @Autowired
+    private KafkaTemplate<String, Object> kafkaTemplate;
+
+    @Autowired
+    private OrderRepository orderRepository;
+
+    @Value("${app.kafka.events.item-reserved}")
+    private String itemReservedTopic;
+
+    @Value("${app.kafka.events.item-reserved-failed}")
+    private String itemReservedFailedTopic;
+
+    @Value("${app.kafka.events.payment-success}")
+    private String paymentSuccessTopic;
+
+    @Value("${app.kafka.events.payment-failed}")
+    private String paymentFailedTopic;
+
+    @Value("${app.kafka.events.order-confirmed}")
+    private String orderConfirmedTopic;
+
+    @Value("${app.kafka.events.order-paid}")
+    private String orderPaidTopic;
+
+    @Value("${app.kafka.events.order-cancelled}")
+    private String orderCancelledTopic;
+
+    private KafkaMessageListenerContainer<String, Object> container;
+    private BlockingQueue<ConsumerRecord<String, Object>> records;
+
+    @BeforeEach
+    void setUp() {
+        records = new LinkedBlockingQueue<>();
+        Map<String, Object> consumerProps = KafkaTestUtils.consumerProps("test-group", "true", embeddedKafkaBroker);
+        consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+
+        DefaultKafkaConsumerFactory<String, Object> consumerFactory = new DefaultKafkaConsumerFactory<>(
+                consumerProps,
+                new StringDeserializer(),
+                new JsonDeserializer<>(Object.class, false)
+        );
+
+        ContainerProperties containerProperties = new ContainerProperties(
+                orderConfirmedTopic, orderPaidTopic, orderCancelledTopic
+        );
+
+        container = new KafkaMessageListenerContainer<>(consumerFactory, containerProperties);
+        container.setupMessageListener((MessageListener<String, Object>) records::add);
+        container.start();
+        ContainerTestUtils.waitForAssignment(container, embeddedKafkaBroker.getPartitionsPerTopic() * 3);
+    }
+
+    @AfterEach
+    void tearDown() {
+        if (container != null) {
+            container.stop();
+        }
+        orderRepository.deleteAll();
+    }
+
+    private OrderEntity createTestOrder() {
+        OrderEntity order = OrderEntity.builder()
+                .buyerId(UUID.randomUUID())
+                .totalPrice(new BigDecimal("100.00"))
+                .orderStatus(OrderStatus.PENDING)
+                .build();
+        return orderRepository.save(order);
+    }
+
+    @Test
+    void handleItemReserveEvent_updatesStatusAndSendsConfirmed() throws Exception {
+        OrderEntity order = createTestOrder();
+        InventoryReservedEvent event = new InventoryReservedEvent(order.getId().toString());
+
+        kafkaTemplate.send(itemReservedTopic, order.getId().toString(), event);
+
+        // check DB
+        await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
+            OrderEntity updated = orderRepository.findById(order.getId()).orElseThrow();
+            assertThat(updated.getOrderStatus()).isEqualTo(OrderStatus.CONFIRMED);
+        });
+
+        // check Kafka OUT
+        ConsumerRecord<String, Object> record = records.poll(5, TimeUnit.SECONDS);
+        assertThat(record).isNotNull();
+        assertThat(record.topic()).isEqualTo(orderConfirmedTopic);
+
+        Map<String, Object> payload = (Map<String, Object>) record.value();
+        assertThat(payload.get("orderId")).isEqualTo(order.getId().toString());
+    }
+
+    @Test
+    void handleItemReserveFailedEvent_updatesStatusToCancelled() throws Exception {
+        OrderEntity order = createTestOrder();
+        InventoryReservationFailedEvent event = new InventoryReservationFailedEvent(order.getId().toString(), "out of stock");
+
+        kafkaTemplate.send(itemReservedFailedTopic, order.getId().toString(), event);
+
+        await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
+            OrderEntity updated = orderRepository.findById(order.getId()).orElseThrow();
+            assertThat(updated.getOrderStatus()).isEqualTo(OrderStatus.CANCELED);
+        });
+    }
+
+    @Test
+    void handlePaymentSuccessEvent_updatesStatusAndSendsPaid() throws Exception {
+        OrderEntity order = createTestOrder();
+        order.setOrderStatus(OrderStatus.CONFIRMED);
+        orderRepository.save(order);
+
+        PaymentSuccessEvent event = new PaymentSuccessEvent(order.getId().toString(), order.getBuyerId().toString(), order.getTotalPrice());
+
+        kafkaTemplate.send(paymentSuccessTopic, order.getId().toString(), event);
+
+        // check DB
+        await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
+            OrderEntity updated = orderRepository.findById(order.getId()).orElseThrow();
+            assertThat(updated.getOrderStatus()).isEqualTo(OrderStatus.PAID);
+        });
+
+        // check Kafka OUT
+        ConsumerRecord<String, Object> record = records.poll(5, TimeUnit.SECONDS);
+        assertThat(record).isNotNull();
+        assertThat(record.topic()).isEqualTo(orderPaidTopic);
+
+        Map<String, Object> payload = (Map<String, Object>) record.value();
+        assertThat(payload.get("orderId")).isEqualTo(order.getId().toString());
+    }
+
+    @Test
+    void handlePaymentFailedEvent_updatesStatusAndSendsCancelled() throws Exception {
+        OrderEntity order = createTestOrder();
+        order.setOrderStatus(OrderStatus.CONFIRMED);
+        orderRepository.save(order);
+
+        PaymentFailedEvent event = new PaymentFailedEvent(order.getId().toString(), "insufficient funds");
+
+        kafkaTemplate.send(paymentFailedTopic, order.getId().toString(), event);
+
+        // check DB
+        await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
+            OrderEntity updated = orderRepository.findById(order.getId()).orElseThrow();
+            assertThat(updated.getOrderStatus()).isEqualTo(OrderStatus.CANCELED);
+        });
+
+        // check Kafka OUT
+        ConsumerRecord<String, Object> record = records.poll(5, TimeUnit.SECONDS);
+        assertThat(record).isNotNull();
+        assertThat(record.topic()).isEqualTo(orderCancelledTopic);
+
+        Map<String, Object> payload = (Map<String, Object>) record.value();
+        assertThat(payload.get("orderId")).isEqualTo(order.getId().toString());
+        assertThat(payload.get("reason")).isEqualTo("insufficient funds");
+    }
+}
+
