@@ -1,5 +1,5 @@
 server:
-  port: 3001
+  port: ${SERVER_PORT}
   http2:
     enabled: true
   compression:
@@ -15,13 +15,13 @@ spring:
 
   datasource:
     driver-class-name: org.postgresql.Driver
-    password: demo2228
-    username: danilanovikov
-    url: jdbc:postgresql://localhost:5432/postgres
+    password: ${POSTGRES_USERNAME}
+    username: ${POSTGRES_PASSWORD}
+    url: ${POSTGRES_URL}
   liquibase:
     analytics-enabled: true
     enabled: true
-    change-log: classpath:db/changelog/db.changelog-master.yaml
+    change-log: ${LIQUIBASE_CHANGELOG_PATH}
   jpa:
     hibernate:
       ddl-auto: validate
@@ -32,21 +32,21 @@ spring:
         use_sql_comments: true
 
   application:
-    name: OrderService
+    name: ${APPLICATION_NAME}
   main:
     allow-bean-definition-overriding: true
     lazy-initialization: true
   data:
     redis:
-      host: localhost
-      port: 6379
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
   cache:
     redis:
       time-to-live: 30s
       use-key-prefix: true
       cache-null-values: false
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
     consumer:
       properties:
         spring.json.add.type.headers: false
@@ -75,4 +75,4 @@ app:
      order-service-dlt: order.service.dlt
   http:
     client:
-      product-service: http://localhost:3002/api/v1/products
+      product-service: ${HTTP_CLIENT_PRODUCT_SERVICE_URL}

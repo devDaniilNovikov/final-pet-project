@@ -45,7 +45,7 @@ public class OutboxRelay {
 
     @Scheduled(fixedDelay = 1000)
     @Transactional
-    public void process(){
+    public void processOutbox(){
         List<OutboxEntity> outboxes = outboxRepository.findPendingWithLock(PAGE_LIMIT);
         for (OutboxEntity entity:outboxes){
             entity.setOutboxStatus(OutboxStatus.IN_PROGRESS);

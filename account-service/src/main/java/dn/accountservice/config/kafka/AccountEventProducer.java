@@ -3,11 +3,14 @@ package dn.accountservice.config.kafka;
 
 import dn.accountservice.event.*;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class AccountEventProducer {
 
@@ -25,21 +28,48 @@ public class AccountEventProducer {
     @Value("${custom.kafka.topics.account-deleted}")
     private String accountDeletedTopic;
 
+    @Value("${custom.kafka.topics.account-updated}")
+    private String accountUpdatedTopic;
+
+
+    @Transactional
+    public void send(String topic,
+                     String key,
+                     Object payload) {
+
+        try {
+            kafkaTemplate.send(topic, key, payload).get();
+        }catch (InterruptedException e){
+            Thread.currentThread().interrupt();
+            log.error("Failed to send message to kafka topic={}",topic,e);
+            throw new RuntimeException("Kafka send interrupted", e);
+        }
+        catch (Exception e){
+            log.error("Failed to send message to kafka topic={}",topic,e);
+            throw new RuntimeException("Kafka send interrupted",e);
+        }
+    }
+
+
 
     public void sendAccountCreatedEvent(AccountCreatedEvent event) {
-        kafkaTemplate.send(accountCreatedTopic, event.id(),event);
+        send(accountCreatedTopic,event.id(),event);
+    }
+
+    public void sendAccountUpdatedEvent(AccountUpdatedEvent event){
+        send(accountUpdatedTopic,event.id(),event);
     }
 
     public void sendAccountBannedEvent(AccountBannedEvent event) {
-        kafkaTemplate.send(accountBannedTopic, event.id(),event);
+        send(accountBannedTopic, event.id(),event);
     }
 
     public void sendAccountDeletedEvent(AccountDeletedEvent event) {
-        kafkaTemplate.send(accountDeletedTopic, event.id(),event);
+        send(accountDeletedTopic, event.id(),event);
     }
 
     public void sendAccountUnbannedEvent(AccountUnbannedEvent event) {
-        kafkaTemplate.send(accountUnbannedTopic, event.id(),event);
+        send(accountUnbannedTopic, event.id(),event);
 
     }
 

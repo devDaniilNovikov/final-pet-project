@@ -8,6 +8,8 @@ import dn.orderservice.entity.OrderEntity;
 import dn.orderservice.entity.OrderItemEntity;
 import dn.orderservice.entity.OutboxEntity;
 import dn.orderservice.enums.OrderStatus;
+import dn.orderservice.exception.OrderNotFoundException;
+import dn.orderservice.exception.ProductNotFoundException;
 import dn.orderservice.mapper.OutboxMapper;
 import dn.orderservice.repository.OrderRepository;
 import dn.orderservice.repository.OutboxRepository;
@@ -63,10 +65,13 @@ public class OrderPersistenceService {
         return new OrderResponse(orderEntity.getId(), orderEntity.getOrderStatus());
     }
 
-    private List<OrderItemEntity> mapToOrderItem(OrderRequest orderRequest,
+
+
+    public List<OrderItemEntity> mapToOrderItem(OrderRequest orderRequest,
                                                  Map<UUID, BigDecimal> priceMap,
                                                  Map<UUID, String> productNameMap,
                                                  OrderEntity order){
+
         return orderRequest.getItems()
                 .stream()
                 .map(orderItemRequest -> OrderItemEntity.builder()
