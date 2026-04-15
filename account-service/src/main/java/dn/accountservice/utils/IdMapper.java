@@ -10,7 +10,7 @@ import java.util.UUID;
 public class IdMapper {
 
     public UUID mapToUUIDFromString(String orderId) {
-        if (orderId.isEmpty()){
+        if (orderId.isBlank()){
             throw new IllegalArgumentException(
                     MessageFormat.format("OrderId: {0} can't be empty or blank",orderId)
             );

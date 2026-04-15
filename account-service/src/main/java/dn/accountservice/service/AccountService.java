@@ -21,6 +21,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.text.MessageFormat;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -86,6 +88,8 @@ public class AccountService {
                 .map(accountMapper::toResponse)
                 .toList();
         listAccountResponse.setAccounts(accountEntities);
+        listAccountResponse.setTotalPages(pageNumber);
+        listAccountResponse.setTotalElements(pageSize);
         return listAccountResponse;
     }
 
@@ -119,6 +123,11 @@ public class AccountService {
                     Objects.requireNonNull(cacheManager.getCache("accounts")).evict("username:" + account.getUsername());
                     accountMapper.updateEntity(accountRequest,account);
                     accountRepository.save(account);
+                    accountEventProducer.sendAccountUpdatedEvent(
+                            AccountUpdatedEvent.builder()
+                                    .id(id.toString())
+                                    .updatedTime(account.getUpdatedAt())
+                                    .build());
                     log.info("Updated account with id: {}", accountId);
                 }, () -> {
                     throw new AccountNotFoundException(

@@ -45,6 +45,8 @@ dependencies {
 hibernate {
     enhancement {
         enableAssociationManagement = true
+        enableLazyInitialization = true
+
     }
 }
 

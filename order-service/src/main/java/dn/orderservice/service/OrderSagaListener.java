@@ -49,6 +49,7 @@ public class OrderSagaListener {
                         MessageFormat.format("Order with id: {0} not found",mappedOrderId)
                 ));
             order.setOrderStatus(OrderStatus.CONFIRMED);
+            orderRepository.save(order);
             sendEventToKafka(orderConfirmedTopic,event.orderId(), OrderConfirmedEvent.builder()
                     .orderId(event.orderId())
                     .buyerId(order.getBuyerId().toString())
@@ -59,7 +60,7 @@ public class OrderSagaListener {
 
     private void log(String topic,
                      Exception e){
-        log.error("Failed sent message to topic={}, cause={}",topic,e );
+        log.error("Failed sent message to topic={}, cause={0}",topic,e );
     }
 
     private void sendEventToKafka(String topic,
@@ -70,10 +71,10 @@ public class OrderSagaListener {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             log(topic,e);
-            throw new RuntimeException(e.getMessage());
+            throw new RuntimeException();
         } catch (ExecutionException e) {
             log(topic,e);
-            throw new RuntimeException(e.getMessage());
+            throw new RuntimeException();
         }
     }
 

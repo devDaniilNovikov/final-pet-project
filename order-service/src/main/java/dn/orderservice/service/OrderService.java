@@ -10,9 +10,7 @@ import dn.orderservice.mapper.OrderMapper;
 import dn.orderservice.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.text.MessageFormat;
 import java.util.*;
@@ -27,6 +25,7 @@ public class OrderService {
     private final OrderPersistenceService orderPersistenceService;
     private final OrderMapper orderMapper;
     private final OrderRepository orderRepository;
+
 
     private final ProductClient productClient;
 
@@ -47,8 +46,7 @@ public class OrderService {
     public OrderResponse getOrderById(UUID orderId){
         return orderMapper.toResponse(orderRepository.findById(orderId)
                 .orElseThrow(()->new OrderNotFoundException(
-                        MessageFormat.format("Order with id: {0} not found",orderId)
-                )));
+                        MessageFormat.format("Order with id: {0} not found",orderId))));
     }
 
 
@@ -56,7 +54,6 @@ public class OrderService {
     public OrderResponse createOrder(OrderRequest orderRequest){
         Set<UUID> productIds = getProductIds(orderRequest);
         Set<ProductResponse> productResponseSet = getProductsByHttpRequest(productIds);
-        validateIds(productIds,productResponseSet);
         return orderPersistenceService.persistOrder(orderRequest,productResponseSet);
 
     }
@@ -71,17 +68,7 @@ public class OrderService {
 
     private Set<ProductResponse> getProductsByHttpRequest(Set<UUID> productIds){
         Set<ProductResponse> productResponses = productClient.batch(productIds);
-        Map<UUID,Integer> productsCollection = productResponses.stream()
-                .filter(Objects::nonNull)
-                .collect(Collectors.toMap(
-                        ProductResponse::getProductId,
-                        ProductResponse::getQuantity)
-                );
-        if (productsCollection.size() != productIds.size()){
-            final String LOG_MESSAGE = "ProductsCollection must be equals size of productIds";
-            log.error(LOG_MESSAGE);
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, LOG_MESSAGE);
-        }
+        validateIds(productIds,productResponses);
         return productResponses;
     }
 }
