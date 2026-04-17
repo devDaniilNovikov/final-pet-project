@@ -4,10 +4,12 @@ import lombok.Builder;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.UUID;
 
 @Builder
-public record OrderCreatedEvent(String orderId,
-                                String buyerId,
+public record OrderCreatedEvent(UUID eventId,
+                                UUID orderId,
+                                UUID buyerId,
                                 List<OrderItemDto> orderItems,
                                 BigDecimal totalPrice) {
 }

@@ -20,7 +20,14 @@ import java.util.UUID;
 
 @Getter
 @Setter
-@Table(schema = "marketplace",name = "accounts")
+@Table(
+    schema = "marketplace",
+    name = "accounts",
+    indexes = {
+        @Index(name = "idx_accounts_username", columnList = "username"),
+        @Index(name = "idx_accounts_email",    columnList = "email")
+    }
+)
 @Entity
 @NoArgsConstructor
 @AllArgsConstructor

@@ -1,12 +1,21 @@
 package dn.orderservice.service;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import dn.orderservice.entity.OrderEntity;
+import dn.orderservice.entity.OutboxEntity;
+import dn.orderservice.entity.ProcessedEventEntity;
 import dn.orderservice.enums.OrderStatus;
+import dn.orderservice.enums.OutboxStatus;
 import dn.orderservice.exception.OrderNotFoundException;
+import dn.orderservice.mapper.OrderItemMapper;
+import dn.orderservice.mapper.OrderMapper;
 import dn.orderservice.repository.OrderRepository;
-import dn.orderservice.utils.IdMapper;
+import dn.orderservice.repository.OutboxRepository;
+import dn.orderservice.repository.ProcessedEventRepository;
 import dn.shared.event.inventory.InventoryReservationFailedEvent;
 import dn.shared.event.order.OrderCancelledEvent;
 import dn.shared.event.order.OrderConfirmedEvent;
+import dn.shared.event.order.OrderItemDto;
 import dn.shared.event.order.OrderPaidEvent;
 import dn.shared.event.payment.PaymentFailedEvent;
 import dn.shared.event.payment.PaymentSuccessEvent;
@@ -19,6 +28,9 @@ import org.springframework.stereotype.Component;
 import dn.shared.event.inventory.InventoryReservedEvent;
 import org.springframework.transaction.annotation.Transactional;
 import java.text.MessageFormat;
+import java.time.LocalDateTime;
+import java.util.Collection;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 
@@ -27,106 +39,93 @@ import java.util.concurrent.ExecutionException;
 @Slf4j
 public class OrderSagaListener {
 
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final ProcessedEventRepository processedEventRepository;
     private final OrderRepository orderRepository;
+    private final OutboxService outboxService;
 
-    @Value("${app.kafka.events.order-confirmed}")
-    private String orderConfirmedTopic;
+    private void processEvent(UUID eventId){
+        processedEventRepository.save(ProcessedEventEntity.builder()
+                .id(eventId)
+                .build());
+    }
 
-    @Value("${app.kafka.events.order-paid}")
-    private String orderPaidTopic;
 
-    @Value("${app.kafka.events.order-cancelled}")
-    private String orderCancelledTopic;
 
 
     @KafkaListener(topics = "${app.kafka.events.item-reserved}")
     @Transactional
-    public void handleItemReserveEvent(InventoryReservedEvent event) {
-            UUID mappedOrderId = IdMapper.mapToUUIDFromString(event.orderId());
-            OrderEntity order = orderRepository.findById(mappedOrderId)
-                .orElseThrow(()->new OrderNotFoundException(
-                        MessageFormat.format("Order with id: {0} not found",mappedOrderId)
-                ));
+    public void handleItemReserveEvent(InventoryReservedEvent event)  {
+        if (!processedEventRepository.existsById(event.eventId())) {
+            UUID mappedOrderId = event.orderId();
+            OrderEntity order = orderRepository.findByIdWithLock(mappedOrderId)
+                    .orElseThrow(() -> new OrderNotFoundException(
+                            MessageFormat.format("Order with id: {0} not found", mappedOrderId)
+                    ));
             order.setOrderStatus(OrderStatus.CONFIRMED);
-            sendEventToKafka(orderConfirmedTopic,event.orderId(), OrderConfirmedEvent.builder()
-                    .orderId(event.orderId())
-                    .buyerId(order.getBuyerId().toString())
-                    .build());
-    }
-
-
-
-    private void log(String topic,
-                     Exception e){
-        log.error("Failed sent message to topic={}, cause={}",topic,e );
-    }
-
-    private void sendEventToKafka(String topic,
-                                  String key,
-                                  Object payload){
-        try {
-            kafkaTemplate.send(topic, key, payload).get();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            log(topic,e);
-            throw new RuntimeException(e.getMessage());
-        } catch (ExecutionException e) {
-            log(topic,e);
-            throw new RuntimeException(e.getMessage());
+            orderRepository.save(order);
+            processEvent(event.eventId());
+            outboxService.createOutbox(order,event);
         }
+        return;
     }
+
+
+
+
 
     @KafkaListener(topics = "${app.kafka.events.item-reserved-failed}")
     @Transactional
     public void handleItemReserveFailedEvent(InventoryReservationFailedEvent event) {
-            UUID mappedOrderId = IdMapper.mapToUUIDFromString(event.orderId());
-            OrderEntity order = orderRepository.findById(mappedOrderId)
-                    .orElseThrow(()->new OrderNotFoundException(
-                            MessageFormat.format("Order with id: {0} not found",mappedOrderId)
+        if (!processedEventRepository.existsById(event.eventId())) {
+            UUID mappedOrderId = event.orderId();
+
+            OrderEntity order = orderRepository.findByIdWithLock(mappedOrderId)
+                    .orElseThrow(() -> new OrderNotFoundException(
+                            MessageFormat.format("Order with id: {0} not found", mappedOrderId)
                     ));
             order.setOrderStatus(OrderStatus.CANCELED);
             orderRepository.save(order);
-            sendEventToKafka(orderCancelledTopic,event.orderId(),
-                    OrderCancelledEvent.builder()
-                            .orderId(event.orderId())
-                            .reason(event.reason())
-                            .build());
+            processEvent(event.eventId());
+            outboxService.createOutbox(order,event);
 
+        }
+        return;
     }
 
     @KafkaListener(topics = "${app.kafka.events.payment-success}")
     @Transactional
-    public void handlePaymentSuccessEvent(PaymentSuccessEvent event) {
-            UUID mappedOrderId = IdMapper.mapToUUIDFromString(event.orderId());
-            OrderEntity order = orderRepository.findById(mappedOrderId)
-                .orElseThrow(()->new OrderNotFoundException(
-                        MessageFormat.format("Order with id: {0} not found",mappedOrderId)
-                ));
-           order.setOrderStatus(OrderStatus.PAID);
-           orderRepository.save(order);
-           sendEventToKafka(orderPaidTopic,event.orderId(), OrderPaidEvent.builder()
-                   .orderId(event.orderId())
-                   .buyerId(event.buyerId())
-                   .amount(event.amount())
-                   .build());
+    public void handlePaymentSuccessEvent(PaymentSuccessEvent event)  {
+        if (!processedEventRepository.existsById(event.eventId())) {
+            UUID mappedOrderId = event.orderId();
+            OrderEntity order = orderRepository.findByIdWithLock(mappedOrderId)
+                    .orElseThrow(() -> new OrderNotFoundException(
+                            MessageFormat.format("Order with id: {0} not found", mappedOrderId)
+                    ));
+            order.setOrderStatus(OrderStatus.PAID);
+            orderRepository.save(order);
+            processEvent(event.eventId());
+            outboxService.createOutbox(order,event);
+        }return;
 
     }
 
     @KafkaListener(topics = "${app.kafka.events.payment-failed}")
     @Transactional
-    public void handlePaymentFailedEvent(PaymentFailedEvent event){
-        UUID mappedOrderId = IdMapper.mapToUUIDFromString(event.orderId());
-        OrderEntity order = orderRepository.findById(mappedOrderId)
-                .orElseThrow(()->new OrderNotFoundException(
-                        MessageFormat.format("Order with id={0} not found",mappedOrderId)
-                        ));
-        order.setOrderStatus(OrderStatus.CANCELED);
-        orderRepository.save(order);
-        sendEventToKafka(orderCancelledTopic,event.orderId(), OrderCancelledEvent.builder()
-                .orderId(event.orderId())
-                .reason(event.reason())
-                .build());
+    public void handlePaymentFailedEvent(PaymentFailedEvent event) {
+        if (!processedEventRepository.existsById(event.eventId())) {
+            UUID mappedOrderId = event.orderId();
+            OrderEntity order = orderRepository.findByIdWithLock(mappedOrderId)
+                    .orElseThrow(() -> new OrderNotFoundException(
+                            MessageFormat.format("Order with id={0} not found", mappedOrderId)
+                    ));
+            order.setOrderStatus(OrderStatus.CANCELED);
+            orderRepository.save(order);
+            processEvent(event.eventId());
+            outboxService.createOutbox(order,event);
         }
+        return;
     }
+
+
+}
 

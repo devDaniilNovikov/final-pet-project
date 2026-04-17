@@ -8,7 +8,7 @@ import java.util.UUID;
 
 @Getter
 @Setter
-@Table(schema = "marketplace",name = "orders")
+@Table(schema = "marketplace", name = "order_items")
 @Entity
 @NoArgsConstructor
 @AllArgsConstructor
@@ -21,18 +21,18 @@ public class OrderItemEntity {
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "order_id")
+    @JoinColumn(name = "order_id",nullable = false)
     private OrderEntity order;
 
-    @Column(name = "product_id")
+    @Column(name = "product_id", nullable = false)
     private UUID productId;
 
-    @Column(name = "product_name",nullable = false)
+    @Column(name = "product_name", nullable = false)
     private String productName;
 
-    @Column(name = "quantity")
+    @Column(name = "quantity", nullable = false)
     private Integer quantity;
 
-    @Column(name = "price_at_purchase")
+    @Column(name = "price_at_purchase", nullable = false)
     private BigDecimal priceAtPurchase;
 }

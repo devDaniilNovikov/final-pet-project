@@ -13,14 +13,14 @@ import java.util.stream.Collectors;
 @UtilityClass
 public class MapBuilderService {
 
-    public static BigDecimal calculate(Map<UUID,BigDecimal> priceMap ){
+    public BigDecimal calculateTotalPrice(Map<UUID,BigDecimal> priceMap ){
         return priceMap.values()
                 .stream()
                 .reduce(BigDecimal.ZERO,BigDecimal::add);
     }
 
-    public static Map<UUID,BigDecimal> buildPriceMap(Set<ProductResponse> responses,
-                                                      Map<UUID,Integer> quantityMap){
+    public Map<UUID,BigDecimal> buildPriceMap(Set<ProductResponse> responses,
+                                               Map<UUID,Integer> quantityMap){
         return responses.stream()
                 .collect(Collectors.toMap(
                         ProductResponse::getProductId,
@@ -31,7 +31,7 @@ public class MapBuilderService {
                 ));
     }
 
-    public static Map<UUID,Integer> buildQuantityMap(OrderRequest orderRequest){
+    public Map<UUID,Integer> buildQuantityMap(OrderRequest orderRequest){
         return orderRequest.getItems()
                 .stream()
                 .collect(Collectors.toMap(
@@ -40,7 +40,10 @@ public class MapBuilderService {
                 );
     }
 
-    public static Map<UUID,String> buildProductNameMap(Set<ProductResponse> responses){
+    public Map<UUID,String> buildProductNameMap(Set<ProductResponse> responses){
+        for (int i = 0; i < responses.size(); i++) {
+
+        }
         return responses.stream()
                 .collect(Collectors.toMap(
                         ProductResponse::getProductId,

@@ -13,7 +13,14 @@ import java.util.UUID;
 
 @Getter
 @Setter
-@Table(schema = "marketplace",name = "orders")
+@Table(
+    schema = "marketplace",
+    name = "orders",
+    indexes = {
+        @Index(name = "idx_orders_buyer_id",     columnList = "buyer_id"),
+        @Index(name = "idx_orders_order_status", columnList = "order_status")
+    }
+)
 @Entity
 @NoArgsConstructor
 @AllArgsConstructor
@@ -25,6 +32,7 @@ public class OrderEntity {
     @Column(name = "id",nullable = false)
     private UUID id;
 
+    @Column(name = "buyer_id", nullable = false)
     private UUID buyerId;
 
     @Column(name = "price",nullable = false)

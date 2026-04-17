@@ -17,7 +17,15 @@ import java.util.UUID;
 
 @Getter
 @Setter
-@Table(schema = "marketplace",name = "products")
+@Table(
+    schema = "marketplace",
+    name = "products",
+    indexes = {
+        @Index(name = "idx_products_seller_id",   columnList = "seller_id"),
+        @Index(name = "idx_products_category_id", columnList = "category_id"),
+        @Index(name = "idx_products_status",      columnList = "status")
+    }
+)
 @Entity
 @NoArgsConstructor
 @AllArgsConstructor
@@ -62,8 +70,7 @@ public class ProductEntity {
     @Column(name = "status",nullable = false)
     private ProductStatus status;
 
-    @Column(name = "rating")
-    private Double rating;
+
 
     @Override
     public boolean equals(Object o) {

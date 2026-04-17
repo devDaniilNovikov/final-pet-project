@@ -43,7 +43,7 @@ public class OrderPersistenceService {
                 productResponseList,
                 quantityMap
         );
-        BigDecimal totalOrderPrice = MapBuilderService.calculate(priceMap);
+        BigDecimal totalOrderPrice = MapBuilderService.calculateTotalPrice(priceMap);
         OrderEntity orderEntity = OrderEntity.builder()
                 .buyerId(orderRequest.getBuyerId())
                 .totalPrice(totalOrderPrice)
