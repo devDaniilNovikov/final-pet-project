@@ -1,4 +1,4 @@
-package dn.orderservice.service;
+package dn.orderservice.service.order;
 import dn.orderservice.client.ProductClient;
 import dn.orderservice.dto.request.OrderItemRequest;
 import dn.orderservice.dto.request.OrderRequest;

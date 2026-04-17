@@ -6,7 +6,7 @@ import dn.orderservice.dto.request.OrderRequest;
 import dn.orderservice.dto.response.OrderResponse;
 import dn.orderservice.enums.OrderStatus;
 import dn.orderservice.exception.GlobalExceptionHandler;
-import dn.orderservice.service.OrderService;
+import dn.orderservice.service.order.OrderService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;

@@ -2,7 +2,7 @@ package dn.orderservice.controller;
 
 import dn.orderservice.dto.request.OrderRequest;
 import dn.orderservice.dto.response.OrderResponse;
-import dn.orderservice.service.OrderService;
+import dn.orderservice.service.order.OrderService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;

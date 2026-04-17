@@ -4,6 +4,7 @@ import dn.orderservice.enums.OutboxStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.springframework.format.annotation.DateTimeFormat;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -36,9 +37,13 @@ public class OutboxEntity {
     @Column(name = "outbox_status",nullable = false)
     private OutboxStatus outboxStatus;
 
+
+    @Column(name = "created_at",nullable = false)
     @CreationTimestamp
+    @DateTimeFormat(pattern = "yyyy-Mm-dd")
     private LocalDateTime createdAt;
 
+    @Column(name = "processed_at")
     private LocalDateTime processedAt;
 
 
