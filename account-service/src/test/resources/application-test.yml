@@ -1,0 +1,27 @@
+spring:
+  liquibase:
+    enabled: false
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    properties:
+      hibernate:
+        default_schema: marketplace
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+  cache:
+    type: none
+  kafka:
+    producer:
+      properties:
+        spring.json.add.type.headers: false
+
+custom:
+  cache:
+    redis:
+      account-cache-name: account
+      accounts-cache-name: accounts
+      cache-ttl: 30s
