@@ -2,12 +2,11 @@ package dn.orderservice.service;
 import dn.orderservice.dto.request.OrderItemRequest;
 import dn.orderservice.dto.request.OrderRequest;
 import dn.orderservice.dto.response.ProductResponse;
+import dn.orderservice.exception.ProductNotFoundException;
 import lombok.experimental.UtilityClass;
 import java.math.BigDecimal;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+import java.text.MessageFormat;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @UtilityClass
@@ -25,13 +24,17 @@ public class MapBuilderService {
                 .collect(Collectors.toMap(
                         ProductResponse::getProductId,
                         productResponse -> {
-                            var quantity = quantityMap.get(productResponse.getProductId());
+                            var product = quantityMap.get(productResponse.getProductId());
+                            int quantity = Optional.ofNullable(product)
+                                    .orElseThrow(()->new ProductNotFoundException(
+                                            MessageFormat.format("Product with id: {0} not found",productResponse.getProductId())
+                                    ));
+
                             return productResponse.getPrice().multiply(BigDecimal.valueOf(quantity));
                         }
                 ));
     }
-
-    public Map<UUID,Integer> buildQuantityMap(OrderRequest orderRequest){
+    public static Map<UUID,Integer> buildQuantityMap(OrderRequest orderRequest){
         return orderRequest.getItems()
                 .stream()
                 .collect(Collectors.toMap(

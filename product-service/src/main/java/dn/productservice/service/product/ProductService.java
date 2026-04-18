@@ -104,7 +104,7 @@ public class ProductService {
          return productMapper.toListResponse(productRepository.findAll(pageable));
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public Set<ProductResponse> findAllByIdsList(Set<UUID> ids) {
         return productRepository.findAllByIdWithLock(ids.stream().toList())
                 .stream()

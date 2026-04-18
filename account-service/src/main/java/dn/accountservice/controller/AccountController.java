@@ -110,7 +110,7 @@ public class AccountController {
     public ListAccountResponse getListAccount(
             @Parameter(description = "Размер страницы", example = "10") @RequestParam int pageSize,
             @Parameter(description = "Номер страницы (с 0)", example = "0") @RequestParam int pageNumber) {
-        return accountService.findAll(pageSize, pageNumber);
+        return accountService.findAll(pageNumber, pageSize);
     }
 
     @Operation(summary = "Получить аккаунт по ID")
