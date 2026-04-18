@@ -101,6 +101,7 @@ public class AccountService {
     @Transactional
     public AccountResponse createAccount(AccountRequest accountRequest) {
         AccountEntity accountEntity = accountMapper.toEntity(accountRequest);
+        attachAddresses(accountEntity);
         var accountForSave = accountRepository.save(accountEntity);
         accountEventProducer.sendAccountCreatedEvent(
                 new AccountCreatedEvent(accountForSave.getUsername(),
@@ -229,5 +230,12 @@ public class AccountService {
                     throw new AccountNotFoundException(
                             MessageFormat.format("Account with id={0} not found",accountId));
                 });
+    }
+
+    private void attachAddresses(AccountEntity accountEntity) {
+        if (accountEntity.getAddresses() == null) {
+            return;
+        }
+        accountEntity.getAddresses().forEach(address -> address.setAccount(accountEntity));
     }
 }

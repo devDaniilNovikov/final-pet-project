@@ -27,7 +27,8 @@ public class EventService {
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
     public void sendProductCreatedEvent(ProductCreateEvent event) {
-        kafkaTemplate.send(productCreatedEvent, event.id(), event)
+        String key = event.id() != null ? event.id().toString() : null;
+        kafkaTemplate.send(productCreatedEvent, key, event)
                 .whenComplete((result, ex) -> {
                     if (ex != null) {
                         log.error("Failed to send ProductCreatedEvent for productId={}: {}", event.id(), ex.getMessage());

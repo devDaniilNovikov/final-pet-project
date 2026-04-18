@@ -50,8 +50,27 @@ public class KafkaConfiguration {
     }
 
     @Bean
-    public DefaultErrorHandler productErrorHandler(KafkaTemplate<String,Object> kafkaTemplate){
+    public ProducerFactory<String, String> stringKafkaProducerFactory(KafkaProperties properties) {
+        Map<String, Object> props = properties.buildProducerProperties(null);
+        props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        props.put(ProducerConfig.ACKS_CONFIG, "all");
+        props.put(ProducerConfig.RETRIES_CONFIG, 3);
+        props.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
+        props.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, 1);
+        return new DefaultKafkaProducerFactory<>(props);
+    }
+
+    @Bean
+    public DefaultErrorHandler productDeadLetterTopic(KafkaTemplate<String,Object> kafkaTemplate){
         DeadLetterPublishingRecoverer deadLetterPublishingRecoverer = new DeadLetterPublishingRecoverer(kafkaTemplate);
+        FixedBackOff fixedBackOff = new FixedBackOff(1000,3);
+        return new DefaultErrorHandler(deadLetterPublishingRecoverer,fixedBackOff);
+    }
+
+    @Bean
+    public DefaultErrorHandler productStringDeadLetterTopic(KafkaTemplate<String,String> stringKafkaTemplate){
+        DeadLetterPublishingRecoverer deadLetterPublishingRecoverer = new DeadLetterPublishingRecoverer(stringKafkaTemplate);
         FixedBackOff fixedBackOff = new FixedBackOff(1000,3);
         return new DefaultErrorHandler(deadLetterPublishingRecoverer,fixedBackOff);
 
@@ -61,6 +80,11 @@ public class KafkaConfiguration {
     @Bean
     public KafkaTemplate<String, Object> kafkaTemplate(KafkaProperties kafkaProperties) {
         return new KafkaTemplate<>(defaultKafkaProducerFactory(kafkaProperties));
+    }
+
+    @Bean
+    public KafkaTemplate<String, String> stringKafkaTemplate(KafkaProperties kafkaProperties) {
+        return new KafkaTemplate<>(stringKafkaProducerFactory(kafkaProperties));
     }
 
     @Bean

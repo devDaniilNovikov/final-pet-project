@@ -4,9 +4,9 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dn.orderservice.entity.OrderEntity;
 import dn.orderservice.entity.OrderItemEntity;
-import dn.orderservice.entity.OutboxEntity;
-import dn.orderservice.enums.OutboxStatus;
 import dn.shared.event.order.OrderCreatedEvent;
+import dn.shared.outbox.OutboxEntity;
+import dn.shared.outbox.OutboxStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -26,8 +26,8 @@ public class OutboxMapper {
                                        List<OrderItemEntity> items,
                                        String topic) {
         OrderCreatedEvent event = OrderCreatedEvent.builder()
-                .orderId(order.getId().toString())
-                .buyerId(order.getBuyerId().toString())
+                .orderId(order.getId())
+                .buyerId(order.getBuyerId())
                 .totalPrice(order.getTotalPrice())
                 .orderItems(orderItemMapper.toDtoList(items))
                 .build();

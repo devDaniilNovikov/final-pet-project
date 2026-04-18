@@ -1,0 +1,15 @@
+databaseChangeLog:
+  - changeSet:
+      id: 005-create-processed-events-table
+      author: dn
+      changes:
+        - createTable:
+            schemaName: marketplace
+            tableName: processed_events
+            columns:
+              - column:
+                  name: event_id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false

@@ -2,7 +2,6 @@ plugins {
     java
     id("org.springframework.boot")
     id("io.spring.dependency-management")
-    id("org.hibernate.orm")
 }
 
 group = "dn"
@@ -45,12 +44,10 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
-hibernate {
-    enhancement {
-        enableAssociationManagement = true
-    }
-}
-
 tasks.withType<Test> {
     useJUnitPlatform()
+}
+
+tasks.named<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") {
+    mainClass.set("dn.productservice.ProductServiceApplication")
 }

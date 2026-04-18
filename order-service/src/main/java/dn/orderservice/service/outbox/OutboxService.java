@@ -4,9 +4,9 @@ package dn.orderservice.service.outbox;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dn.orderservice.entity.OrderEntity;
-import dn.orderservice.entity.OutboxEntity;
-import dn.orderservice.enums.OutboxStatus;
-import dn.orderservice.repository.OutboxRepository;
+import dn.orderservice.entity.OrderItemEntity;
+import dn.orderservice.mapper.OrderItemMapper;
+import dn.shared.outbox.OutboxStatus;
 import dn.shared.event.inventory.InventoryReservationFailedEvent;
 import dn.shared.event.inventory.InventoryReservedEvent;
 import dn.shared.event.order.OrderCancelledEvent;
@@ -14,6 +14,8 @@ import dn.shared.event.order.OrderConfirmedEvent;
 import dn.shared.event.order.OrderPaidEvent;
 import dn.shared.event.payment.PaymentFailedEvent;
 import dn.shared.event.payment.PaymentSuccessEvent;
+import dn.shared.outbox.OutboxEntity;
+import dn.shared.outbox.OutboxRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -28,6 +30,7 @@ public class OutboxService {
 
     private final OutboxRepository outboxRepository;
     private final ObjectMapper objectsMapper;
+    private final OrderItemMapper orderItemMapper;
 
 
 
@@ -43,7 +46,7 @@ public class OutboxService {
     private String orderCancelledTopic;
 
     public void createOutbox(OrderEntity order,
-                              InventoryReservedEvent event) {
+                             InventoryReservedEvent event) {
         try {
             var orderPayload = OrderConfirmedEvent.builder()
                     .orderId(order.getId())
@@ -67,10 +70,14 @@ public class OutboxService {
     public void createOutbox(OrderEntity order,
                               InventoryReservationFailedEvent event){
         try {
+            var orders = order.getOrderItemEntities()
+                    .stream()
+                    .map(orderItemMapper::toDto)
+                    .toList();
             var orderPayload = OrderCancelledEvent.builder()
                     .orderId(order.getId())
                     .eventId(event.eventId())
-                    .orders(Collections.emptyList()) //TODO:
+                    .orders(orders)//TODO:
                     .build();
             var payload = objectsMapper.writeValueAsString(orderPayload);
             var outbox = OutboxEntity.builder()

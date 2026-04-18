@@ -4,7 +4,7 @@ import dn.productservice.dto.product.ListProductResponse;
 import dn.productservice.dto.product.ProductRequest;
 import dn.productservice.dto.product.ProductResponse;
 import dn.productservice.exception.ErrorBody;
-import dn.productservice.service.ProductService;
+import dn.productservice.service.product.ProductService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;

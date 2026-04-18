@@ -4,10 +4,10 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dn.orderservice.entity.OrderEntity;
 import dn.orderservice.entity.OrderItemEntity;
-import dn.orderservice.entity.OutboxEntity;
-import dn.orderservice.enums.OutboxStatus;
 import dn.shared.event.order.OrderCreatedEvent;
 import dn.shared.event.order.OrderItemDto;
+import dn.shared.outbox.OutboxEntity;
+import dn.shared.outbox.OutboxStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -36,6 +36,7 @@ class OutboxMapperTest {
     private static final UUID ORDER_ID = UUID.randomUUID();
     private static final UUID BUYER_ID = UUID.randomUUID();
     private static final UUID PRODUCT_ID = UUID.randomUUID();
+    private static final UUID EVENT_ID = UUID.randomUUID();
     private static final String TOPIC = "order.created";
 
     @BeforeEach
@@ -83,7 +84,7 @@ class OutboxMapperTest {
         OutboxEntity result = outboxMapper.toOutboxEntity(order, List.of(), TOPIC);
 
         OrderCreatedEvent event = objectMapper.readValue(result.getPayload().toString(), OrderCreatedEvent.class);
-        assertThat(event.orderId()).isEqualTo(ORDER_ID.toString());
+        assertThat(event.orderId()).isEqualTo(ORDER_ID);
     }
 
     @Test
@@ -94,7 +95,7 @@ class OutboxMapperTest {
         OutboxEntity result = outboxMapper.toOutboxEntity(order, List.of(), TOPIC);
 
         OrderCreatedEvent event = objectMapper.readValue(result.getPayload().toString(), OrderCreatedEvent.class);
-        assertThat(event.buyerId()).isEqualTo(BUYER_ID.toString());
+        assertThat(event.buyerId()).isEqualTo(BUYER_ID);
     }
 
     @Test
@@ -117,7 +118,7 @@ class OutboxMapperTest {
                 .quantity(5)
                 .priceAtPurchase(new BigDecimal("50.00"))
                 .build();
-        OrderItemDto itemDto = new OrderItemDto(PRODUCT_ID, "Widget", 5, new BigDecimal("50.00"));
+        OrderItemDto itemDto = new OrderItemDto(EVENT_ID, PRODUCT_ID, "Widget", 5, new BigDecimal("50.00"));
         when(orderItemMapper.toDtoList(List.of(itemEntity))).thenReturn(List.of(itemDto));
 
         OutboxEntity result = outboxMapper.toOutboxEntity(order, List.of(itemEntity), TOPIC);
@@ -133,8 +134,9 @@ class OutboxMapperTest {
     @Test
     void toOrderCreatedEvent_deserializesPayloadCorrectly() throws JsonProcessingException {
         OrderCreatedEvent original = OrderCreatedEvent.builder()
-                .orderId(ORDER_ID.toString())
-                .buyerId(BUYER_ID.toString())
+                .eventId(EVENT_ID)
+                .orderId(ORDER_ID)
+                .buyerId(BUYER_ID)
                 .totalPrice(new BigDecimal("100.00"))
                 .orderItems(List.of())
                 .build();
@@ -146,8 +148,8 @@ class OutboxMapperTest {
 
         OrderCreatedEvent result = outboxMapper.toOrderCreatedEvent(outbox);
 
-        assertThat(result.orderId()).isEqualTo(ORDER_ID.toString());
-        assertThat(result.buyerId()).isEqualTo(BUYER_ID.toString());
+        assertThat(result.orderId()).isEqualTo(ORDER_ID);
+        assertThat(result.buyerId()).isEqualTo(BUYER_ID);
         assertThat(result.totalPrice()).isEqualByComparingTo(new BigDecimal("100.00"));
         assertThat(result.orderItems()).isEmpty();
     }
@@ -166,10 +168,11 @@ class OutboxMapperTest {
 
     @Test
     void toOrderCreatedEvent_preservesOrderItems() throws JsonProcessingException {
-        OrderItemDto item = new OrderItemDto(PRODUCT_ID, "Gadget", 2, new BigDecimal("30.00"));
+        OrderItemDto item = new OrderItemDto(EVENT_ID, PRODUCT_ID, "Gadget", 2, new BigDecimal("30.00"));
         OrderCreatedEvent original = OrderCreatedEvent.builder()
-                .orderId(ORDER_ID.toString())
-                .buyerId(BUYER_ID.toString())
+                .eventId(EVENT_ID)
+                .orderId(ORDER_ID)
+                .buyerId(BUYER_ID)
                 .totalPrice(new BigDecimal("60.00"))
                 .orderItems(List.of(item))
                 .build();
@@ -197,4 +200,3 @@ class OutboxMapperTest {
                 .build();
     }
 }
-

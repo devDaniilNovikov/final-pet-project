@@ -1,11 +1,5 @@
-package dn.orderservice.service;
+package dn.shared.outbox;
 
-
-import dn.orderservice.entity.OutboxEntity;
-import dn.orderservice.enums.OutboxStatus;
-import dn.orderservice.repository.OutboxRepository;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
@@ -14,15 +8,14 @@ import org.springframework.transaction.support.TransactionTemplate;
 import java.time.LocalDateTime;
 
 @Service
-@Slf4j
-public class TransactionService {
+public class OutboxTransactionService {
 
     private final TransactionTemplate transactionTemplate;
     private final OutboxRepository outboxRepository;
 
 
-    public TransactionService(final PlatformTransactionManager platformTransactionManager,
-                              OutboxRepository outboxRepository) {
+    public OutboxTransactionService(PlatformTransactionManager platformTransactionManager,
+                                    OutboxRepository outboxRepository) {
         this.transactionTemplate = new TransactionTemplate(platformTransactionManager);
         this.transactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
         this.outboxRepository = outboxRepository;

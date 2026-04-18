@@ -17,6 +17,7 @@
           <package value="dn.productservice" />
         </packages>
       </persistence-unit>
+      <persistence-unit moduleName="FinalPetProject.shared-events.main" name="Default" />
     </persistence-units>
   </component>
 </project>

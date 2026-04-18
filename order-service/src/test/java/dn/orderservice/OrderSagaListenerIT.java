@@ -1,16 +1,16 @@
 package dn.orderservice;
 
 import dn.orderservice.entity.OrderEntity;
-import dn.orderservice.entity.OutboxEntity;
 import dn.orderservice.enums.OrderStatus;
 import dn.orderservice.repository.OrderRepository;
-import dn.orderservice.repository.OutboxRepository;
-import dn.orderservice.repository.ProcessedEventRepository;
-import dn.orderservice.service.outbox.OutboxRelay;
 import dn.shared.event.inventory.InventoryReservationFailedEvent;
 import dn.shared.event.inventory.InventoryReservedEvent;
 import dn.shared.event.payment.PaymentFailedEvent;
 import dn.shared.event.payment.PaymentSuccessEvent;
+import dn.shared.idempotency.ProcessedEventRepository;
+import dn.shared.outbox.OutboxEntity;
+import dn.shared.outbox.OutboxRelay;
+import dn.shared.outbox.OutboxRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

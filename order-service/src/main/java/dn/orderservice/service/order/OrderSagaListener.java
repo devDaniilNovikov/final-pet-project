@@ -1,11 +1,11 @@
 package dn.orderservice.service.order;
 import dn.orderservice.entity.OrderEntity;
-import dn.orderservice.entity.ProcessedEventEntity;
 import dn.orderservice.enums.OrderStatus;
 import dn.orderservice.exception.OrderNotFoundException;
 import dn.orderservice.repository.OrderRepository;
-import dn.orderservice.repository.ProcessedEventRepository;
 import dn.orderservice.service.outbox.OutboxService;
+import dn.shared.idempotency.ProcessedEventEntity;
+import dn.shared.idempotency.ProcessedEventRepository;
 import dn.shared.event.inventory.InventoryReservationFailedEvent;
 import dn.shared.event.payment.PaymentFailedEvent;
 import dn.shared.event.payment.PaymentSuccessEvent;

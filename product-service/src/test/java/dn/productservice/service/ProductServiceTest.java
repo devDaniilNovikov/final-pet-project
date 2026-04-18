@@ -11,7 +11,7 @@ import dn.productservice.event.ProductCreateEvent;
 import dn.productservice.event.ProductDeletedEvent;
 import dn.productservice.event.ProductUpdatedEvent;
 import dn.productservice.exception.ProductNotFoundException;
-import dn.productservice.utils.IdConverter;
+import dn.productservice.service.product.ProductService;
 import dn.productservice.mapper.ProductImageMapper;
 import dn.productservice.mapper.ProductMapper;
 import dn.productservice.repository.CategoryRepository;

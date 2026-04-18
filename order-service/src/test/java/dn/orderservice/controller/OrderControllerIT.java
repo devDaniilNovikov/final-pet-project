@@ -9,7 +9,7 @@ import dn.orderservice.dto.response.ProductResponse;
 import dn.orderservice.entity.OrderEntity;
 import dn.orderservice.enums.OrderStatus;
 import dn.orderservice.repository.OrderRepository;
-import dn.orderservice.service.outbox.OutboxRelay;
+import dn.shared.outbox.OutboxRelay;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

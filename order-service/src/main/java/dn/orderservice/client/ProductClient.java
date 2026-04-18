@@ -13,11 +13,6 @@ public interface ProductClient {
 
     String URL = "/batch";
 
-    Map<String,String> headers = Map.of("","");
-
-
-    @PostExchange(value = URL,headers = {
-            "",""
-    })
+    @PostExchange(value = URL)
     Set<ProductResponse> batch(Set<UUID> ids);
 }

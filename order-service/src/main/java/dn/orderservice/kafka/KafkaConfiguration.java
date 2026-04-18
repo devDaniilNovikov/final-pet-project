@@ -54,6 +54,23 @@ public class KafkaConfiguration {
     }
 
     @Bean
+    public ProducerFactory<String, String> stringKafkaProducerFactory(KafkaProperties properties) {
+        Map<String, Object> props = properties.buildProducerProperties(null);
+        props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        props.put(ProducerConfig.ACKS_CONFIG, "all");
+        props.put(ProducerConfig.RETRIES_CONFIG, 3);
+        props.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
+        props.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, 1);
+        return new DefaultKafkaProducerFactory<>(props);
+    }
+
+    @Bean
+    public KafkaTemplate<String,String> stringKafkaTemplate(KafkaProperties kafkaProperties){
+        return new KafkaTemplate<>(stringKafkaProducerFactory(kafkaProperties));
+    }
+
+    @Bean
     public DefaultErrorHandler errorOrderHandler(KafkaTemplate<String,Object> kafkaTemplate){
         DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(kafkaTemplate);
         FixedBackOff fixedBackOff = new FixedBackOff(1000L,3);

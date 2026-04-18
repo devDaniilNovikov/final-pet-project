@@ -5,3 +5,7 @@ databaseChangeLog:
       file: db/changelog/002-add-indexes.yaml
   - include:
       file: db/changelog/003-add-rating-column.yaml
+  - include:
+      file: db/changelog/004-create-outbox-table.yaml
+  - include:
+      file: db/changelog/005-create-processed-events-table.yaml

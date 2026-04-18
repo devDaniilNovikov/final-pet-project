@@ -1,4 +1,4 @@
-package dn.productservice.service;
+package dn.productservice.service.product;
 
 
 import dn.productservice.dto.product.ListProductResponse;
@@ -9,6 +9,7 @@ import dn.productservice.event.ProductCreateEvent;
 import dn.productservice.event.ProductDeletedEvent;
 import dn.productservice.event.ProductUpdatedEvent;
 import dn.productservice.exception.ProductNotFoundException;
+import dn.productservice.service.EventService;
 import dn.productservice.utils.IdConverter;
 import dn.productservice.mapper.ProductImageMapper;
 import dn.productservice.mapper.ProductMapper;
@@ -65,7 +66,7 @@ public class ProductService {
 
         productRepository.save(productEntity);
         eventService.sendProductCreatedEvent(ProductCreateEvent.builder()
-                        .id(productEntity.getId().toString())
+                        .id(productEntity.getId())
                         .name(productRequest.getName())
                         .build());
         return productMapper.toResponse(productEntity);
@@ -86,7 +87,7 @@ public class ProductService {
                             .name(productRequest.getName())
                             .updatedTime(Instant.now())
                             .build());
-        },()->{ throw new ProductNotFoundException(MessageFormat.format(
+        },() -> { throw new ProductNotFoundException(MessageFormat.format(
                             "Product with id={0} not found", productId
                     ));
                 });

@@ -1,6 +1,6 @@
-package dn.orderservice.entity;
+package dn.shared.outbox;
 
-import dn.orderservice.enums.OutboxStatus;
+import dn.shared.outbox.OutboxStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -37,7 +37,6 @@ public class OutboxEntity {
     @Column(name = "outbox_status",nullable = false)
     private OutboxStatus outboxStatus;
 
-
     @Column(name = "created_at",nullable = false)
     @CreationTimestamp
     @DateTimeFormat(pattern = "yyyy-Mm-dd")
@@ -46,5 +45,16 @@ public class OutboxEntity {
     @Column(name = "processed_at")
     private LocalDateTime processedAt;
 
-
+    @Override
+    public String toString() {
+        return "OutboxEntity{" +
+                "id=" + id +
+                ", aggregateId=" + aggregateId +
+                ", topic='" + topic + '\'' +
+                ", payload='" + payload + '\'' +
+                ", outboxStatus=" + outboxStatus +
+                ", createdAt=" + createdAt +
+                ", processedAt=" + processedAt +
+                '}';
+    }
 }
