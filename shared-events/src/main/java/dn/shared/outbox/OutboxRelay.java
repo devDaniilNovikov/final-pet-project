@@ -1,5 +1,6 @@
 package dn.shared.outbox;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,6 +13,7 @@ import java.util.concurrent.ExecutionException;
 
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class OutboxRelay {
 
 
@@ -22,13 +24,7 @@ public class OutboxRelay {
 
     private static final int PAGE_LIMIT = 10;
 
-    public OutboxRelay(OutboxRepository outboxRepository,
-                       KafkaTemplate<String, String> kafkaTemplate,
-                       OutboxTransactionService outboxTransactionService) {
-        this.outboxRepository = outboxRepository;
-        this.kafkaTemplate = kafkaTemplate;
-        this.outboxTransactionService = outboxTransactionService;
-    }
+
 
 
     @Scheduled(fixedDelay = 1000)

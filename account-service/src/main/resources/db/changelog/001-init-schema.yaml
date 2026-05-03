@@ -105,4 +105,4 @@ databaseChangeLog:
                   type: uuid
                   constraints:
                     foreignKeyName: fk_address_account
-                    references: marketplace.accounts(id)
+                    references: marketplace.accounts(eventId)

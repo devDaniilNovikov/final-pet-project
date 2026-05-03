@@ -2,8 +2,8 @@ package dn.accountservice;
 
 import dn.accountservice.config.kafka.AccountEventProducer;
 import dn.accountservice.event.AccountBannedEvent;
-import dn.accountservice.event.AccountCreatedEvent;
 import dn.accountservice.event.AccountDeletedEvent;
+import dn.shared.event.AccountCreatedEvent;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.serialization.StringDeserializer;
@@ -106,8 +106,12 @@ public class AccountEventProducerIT {
     void sendAccountCreatedEvent_sendsToKafka() throws InterruptedException {
         // Arrange
         records.clear();
-        String accountId = UUID.randomUUID().toString();
-        AccountCreatedEvent event = new AccountCreatedEvent("testuser", accountId);
+        UUID accountId = UUID.randomUUID();
+        AccountCreatedEvent event = AccountCreatedEvent.builder()
+                .accountId(accountId)
+                .eventId(UUID.randomUUID())
+                .username("testuser")
+                .build();
 
         // Act
         accountEventProducer.sendAccountCreatedEvent(event);
@@ -119,7 +123,7 @@ public class AccountEventProducerIT {
         
         // Deserialize and check payload (Since it's Object.class deserialized by Jackson, it's a Map)
         Map<String, Object> payload = (Map<String, Object>) singleRecord.value();
-        assertThat(payload.get("id")).isEqualTo(accountId);
+        assertThat(payload.get("accountId")).isEqualTo(accountId.toString());
         assertThat(payload.get("username")).isEqualTo("testuser");
     }
 
@@ -127,8 +131,13 @@ public class AccountEventProducerIT {
     void sendAccountBannedEvent_sendsToKafka() throws InterruptedException {
         // Arrange
         records.clear();
-        String accountId = UUID.randomUUID().toString();
-        AccountBannedEvent event = new AccountBannedEvent(accountId, Instant.now().plusSeconds(3600), "Spam");
+        UUID accountId = UUID.randomUUID();
+        AccountBannedEvent event = new AccountBannedEvent(
+                accountId,
+                UUID.randomUUID(),
+                Instant.now().plusSeconds(3600),
+                "Spam"
+        );
 
         // Act
         accountEventProducer.sendAccountBannedEvent(event);
@@ -139,7 +148,7 @@ public class AccountEventProducerIT {
         assertThat(singleRecord.topic()).isEqualTo(accountBannedTopic);
 
         Map<String, Object> payload = (Map<String, Object>) singleRecord.value();
-        assertThat(payload.get("id")).isEqualTo(accountId);
+        assertThat(payload.get("id")).isEqualTo(accountId.toString());
         assertThat(payload.get("reason")).isEqualTo("Spam");
     }
 
@@ -147,8 +156,12 @@ public class AccountEventProducerIT {
     void sendAccountDeletedEvent_sendsToKafka() throws InterruptedException {
         // Arrange
         records.clear();
-        String accountId = UUID.randomUUID().toString();
-        AccountDeletedEvent event = new AccountDeletedEvent(accountId, Instant.now());
+        UUID accountId = UUID.randomUUID();
+        AccountDeletedEvent event = new AccountDeletedEvent(
+                UUID.randomUUID(),
+                accountId,
+                Instant.now()
+        );
 
         // Act
         accountEventProducer.sendAccountDeletedEvent(event);
@@ -159,6 +172,6 @@ public class AccountEventProducerIT {
         assertThat(singleRecord.topic()).isEqualTo(accountDeletedTopic);
 
         Map<String, Object> payload = (Map<String, Object>) singleRecord.value();
-        assertThat(payload.get("id")).isEqualTo(accountId);
+        assertThat(payload.get("id")).isEqualTo(accountId.toString());
     }
 }

@@ -20,6 +20,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 @Tag(name = "Accounts", description = "API для управления аккаунтами, адресами и блокировками")
 @RestController
@@ -149,7 +150,7 @@ public class AccountController {
     @DeleteMapping(DELETE_ACCOUNTS_BY_IDS)
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteAccountsByIds(
-            @Parameter(description = "Список UUID аккаунтов", required = true) @RequestParam List<String> accountIds) {
+            @Parameter(description = "Список UUID аккаунтов", required = true) @RequestParam List<UUID> accountIds) {
         accountService.deleteAccountsByIds(accountIds);
     }
 

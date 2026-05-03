@@ -45,7 +45,7 @@ public class OrderService {
 
     public OrderResponse getOrderById(UUID orderId){
         return orderMapper.toResponse(orderRepository.findById(orderId)
-                .orElseThrow(()->new OrderNotFoundException(
+                .orElseThrow(() -> new OrderNotFoundException(
                         MessageFormat.format("Order with id: {0} not found",orderId))));
     }
 

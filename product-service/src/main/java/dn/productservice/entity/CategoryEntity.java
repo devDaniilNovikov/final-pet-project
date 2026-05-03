@@ -37,6 +37,8 @@ public class CategoryEntity {
     @OneToMany(mappedBy = "category")
     private List<ProductEntity> products;
 
+
+
     @Override
     public boolean equals(Object o) {
         if (o == null || getClass() != o.getClass()) return false;

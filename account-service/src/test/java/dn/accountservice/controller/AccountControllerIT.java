@@ -39,12 +39,12 @@ class AccountControllerIT extends AbstractAccountIT {
         savedAccount = accountRepository.save(buildAccount("alice", "alice@test.com"));
     }
 
-    // --- GET /api/v1/accounts/{id} ---
+    // --- GET /api/v1/accounts/{eventId} ---
 
     @Test
     void getAccountById_existingAccount_returns200() {
         ResponseEntity<Map> response = restTemplate.getForEntity(
-                "/api/v1/accounts/{id}", Map.class, savedAccount.getId().toString());
+                "/api/v1/accounts/{eventId}", Map.class, savedAccount.getId().toString());
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody().get("username")).isEqualTo("alice");
@@ -54,7 +54,7 @@ class AccountControllerIT extends AbstractAccountIT {
     @Test
     void getAccountById_unknownId_returns404() {
         ResponseEntity<Map> response = restTemplate.getForEntity(
-                "/api/v1/accounts/{id}", Map.class, UUID.randomUUID().toString());
+                "/api/v1/accounts/{eventId}", Map.class, UUID.randomUUID().toString());
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
@@ -62,7 +62,7 @@ class AccountControllerIT extends AbstractAccountIT {
     @Test
     void getAccountById_invalidUuid_returns400() {
         ResponseEntity<Map> response = restTemplate.getForEntity(
-                "/api/v1/accounts/{id}", Map.class, "not-a-uuid");
+                "/api/v1/accounts/{eventId}", Map.class, "not-a-uuid");
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
@@ -102,14 +102,14 @@ class AccountControllerIT extends AbstractAccountIT {
     @Test
     void getAccountsByIds_returnsMatchingAccounts() {
         ResponseEntity<Map> response = restTemplate.getForEntity(
-                "/api/v1/accounts/by-ids?accountIds={id}", Map.class,
+                "/api/v1/accounts/by-ids?accountIds={eventId}", Map.class,
                 savedAccount.getId().toString());
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).containsKey("accounts");
     }
 
-    // --- PATCH /api/v1/accounts/{id} ---
+    // --- PATCH /api/v1/accounts/{eventId} ---
 
     @Test
     void updateAccount_validRequest_returns200() {
@@ -119,7 +119,7 @@ class AccountControllerIT extends AbstractAccountIT {
                 .build();
 
         ResponseEntity<Void> response = restTemplate.exchange(
-                "/api/v1/accounts/{id}", HttpMethod.PATCH,
+                "/api/v1/accounts/{eventId}", HttpMethod.PATCH,
                 new HttpEntity<>(update), Void.class,
                 savedAccount.getId().toString());
 
@@ -138,7 +138,7 @@ class AccountControllerIT extends AbstractAccountIT {
                 .build();
 
         ResponseEntity<Map> response = restTemplate.exchange(
-                "/api/v1/accounts/{id}", HttpMethod.PATCH,
+                "/api/v1/accounts/{eventId}", HttpMethod.PATCH,
                 new HttpEntity<>(update), Map.class,
                 savedAccount.getId().toString());
 
@@ -153,14 +153,14 @@ class AccountControllerIT extends AbstractAccountIT {
                 .build();
 
         ResponseEntity<Map> response = restTemplate.exchange(
-                "/api/v1/accounts/{id}", HttpMethod.PATCH,
+                "/api/v1/accounts/{eventId}", HttpMethod.PATCH,
                 new HttpEntity<>(update), Map.class,
                 savedAccount.getId().toString());
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
 
-    // --- POST /api/v1/accounts/{id}/ban ---
+    // --- POST /api/v1/accounts/{eventId}/ban ---
 
     @Test
     void banAccount_validRequest_setsIsBannedTrue() {
@@ -171,7 +171,7 @@ class AccountControllerIT extends AbstractAccountIT {
                 .build();
 
         ResponseEntity<Void> response = restTemplate.postForEntity(
-                "/api/v1/accounts/{id}/ban",
+                "/api/v1/accounts/{eventId}/ban",
                 banRequest, Void.class,
                 savedAccount.getId().toString());
 
@@ -192,14 +192,14 @@ class AccountControllerIT extends AbstractAccountIT {
                 .build();
 
         ResponseEntity<Map> response = restTemplate.postForEntity(
-                "/api/v1/accounts/{id}/ban",
+                "/api/v1/accounts/{eventId}/ban",
                 banRequest, Map.class,
                 UUID.randomUUID().toString());
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 
-    // --- POST /api/v1/accounts/{id}/unban ---
+    // --- POST /api/v1/accounts/{eventId}/unban ---
 
     @Test
     void unbanAccount_bannedAccount_setsIsBannedFalse() {
@@ -208,7 +208,7 @@ class AccountControllerIT extends AbstractAccountIT {
         accountRepository.save(savedAccount);
 
         ResponseEntity<Void> response = restTemplate.postForEntity(
-                "/api/v1/accounts/{id}/unban", null, Void.class,
+                "/api/v1/accounts/{eventId}/unban", null, Void.class,
                 savedAccount.getId().toString());
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -220,18 +220,18 @@ class AccountControllerIT extends AbstractAccountIT {
     @Test
     void unbanAccount_unknownId_returns404() {
         ResponseEntity<Map> response = restTemplate.postForEntity(
-                "/api/v1/accounts/{id}/unban", null, Map.class,
+                "/api/v1/accounts/{eventId}/unban", null, Map.class,
                 UUID.randomUUID().toString());
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 
-    // --- DELETE /api/v1/accounts/{id} ---
+    // --- DELETE /api/v1/accounts/{eventId} ---
 
     @Test
     void deleteAccountById_existingAccount_returns204AndRemovesFromDb() {
         ResponseEntity<Void> response = restTemplate.exchange(
-                "/api/v1/accounts/{id}", HttpMethod.DELETE,
+                "/api/v1/accounts/{eventId}", HttpMethod.DELETE,
                 null, Void.class,
                 savedAccount.getId().toString());
 

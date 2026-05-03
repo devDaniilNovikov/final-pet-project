@@ -7,15 +7,10 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.util.UUID;
 
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-public class OrderItemDto {
 
-    private UUID eventId;
-    private UUID productId;
-    private String productName;
-    private int quantity;
-    private BigDecimal price;
-
-}
+public record OrderItemDto(
+        UUID eventId,
+        UUID productId,
+        String productName,
+        BigDecimal price,
+        Integer quantity) {}

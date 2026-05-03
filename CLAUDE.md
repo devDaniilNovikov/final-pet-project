@@ -1,223 +1,206 @@
-# AGENTS.md — AI Agent Guide for `eat-delivery-service`
+# Claude Code Configuration for FinalPetProject
 
-# Системный промпт + Спецификация проекта: HighLoad Маркетплейс
+> AI-powered development workspace configuration
+
+## Available Skills
+
+Skills are loaded from `.claude/skills/` (symlinked from claude-code-java).
+
+To use a skill, load it first, then invoke with natural language:
+
+### 1. Git Commit Messages
+**Load**: `view .claude/skills/git-commit/SKILL.md`
+
+**Use cases**:
+- "Commit staged changes"
+- "Create commit for bug fix #123"
+- "Generate conventional commit message"
+
+**Example**:
+```
+> view .claude/skills/git-commit/SKILL.md
+> "Commit these changes"
+→ fix(plugin-loader): prevent NPE when directory missing
+```
+
+### 2. Test Quality (JUnit 5 + AssertJ)
+**Load**: `view .claude/skills/test-quality/SKILL.md`
+
+**Use cases**:
+- "Add tests for PluginManager.loadAll()"
+- "Review existing tests in PluginLoaderTest"
+- "Improve test coverage for lifecycle module"
+
+**Example**:
+```
+> view .claude/skills/test-quality/SKILL.md
+> "Add unit tests for ExtensionFactory with edge cases"
+→ Generates JUnit 5 tests with AssertJ assertions
+```
+
+### 3. Issue Triage
+**Load**: `view .claude/skills/issue-triage/SKILL.md`
+
+**Use cases**:
+- "Triage the last 10 issues"
+- "Check recent bug reports"
+- "Prioritize open feature requests"
+
+**Example**:
+```
+> view .claude/skills/issue-triage/SKILL.md
+> "Triage issues from final-pet-project, last 15"
+→ Categorizes, labels, suggests responses
+```
+
+## MCP Servers (Optional)
+
+MCP servers enhance capabilities with structured, token-efficient operations:
+
+| Server | Benefits |
+|--------|----------|
+| GitHub MCP | Issue management, PR creation |
+| Filesystem MCP | Structured file tree navigation |
+| Git MCP | Commit history, blame, log parsing |
+
+To configure MCP servers, run from claude-code-java:
+```bash
+./scripts/configure-mcp.sh /path/to/this/project
+```
+
+See [MCP documentation](https://modelcontextprotocol.io/) for details.
+
+## Common Workflows
+
+### Daily Development Flow
+```bash
+# 1. Start session
+claude code .
+
+# 2. Work on feature/fix
+# ... make code changes ...
+
+# 3. Add tests (load test-quality skill)
+> view .claude/skills/test-quality/SKILL.md
+> "Add tests for new functionality in class X"
+
+# 4. Commit (load git-commit skill)
+> view .claude/skills/git-commit/SKILL.md
+> "Commit staged changes"
+
+# 5. Push and create PR
+> "Push changes and create PR for issue #123"
+```
+
+### Weekly Maintenance
+```bash
+# Monday morning: Issue triage
+claude code .
+
+> view .claude/skills/issue-triage/SKILL.md
+> "Triage the last 20 issues, categorize and prioritize"
+
+# Review suggested actions
+> "Apply labels and post responses as suggested"
+```
+
+### Code Review
+```bash
+# Review PR
+> "Review PR #456 focusing on:
+   - Test coverage (use test-quality skill)
+   - Commit message quality (use git-commit skill)
+   - Code patterns and best practices"
+```
+
+## Token Budget Guidelines
+
+To optimize token usage:
+
+1. **Load skills once per session** - Skills stay in context
+2. **Batch operations** - Process multiple issues/tests together
+3. **Use MCP when available** - More efficient than bash commands
+4. **Targeted file reads** - Only read files you need
+
+### Target Token Usage
+
+| Task | Without Skills | With Skills | Savings |
+|------|----------------|-------------|---------|
+| Commit message | ~800 tokens | ~300 tokens | 62% |
+| Add 3 tests | ~2000 tokens | ~800 tokens | 60% |
+| Triage 10 issues | ~5000 tokens | ~2000 tokens | 60% |
+
+## What to Avoid
+
+1. **Don't reload skills repeatedly** - Load once per session
+2. **Don't process issues one-by-one** - Batch them
+3. **Don't over-engineer** - Use skills for appropriate tasks
+4. **Don't ignore skill guidelines** - They're optimized for tokens
+
+## Project-Specific Notes
+
+### Build Commands
+```bash
+# Maven
+mvn clean install
+mvn test
+mvn jacoco:report
+
+# Check test coverage
+open target/site/jacoco/index.html
+```
+
+### Testing Strategy
+- Target: 80%+ coverage on core logic
+- Focus: Business logic, not boilerplate
+- Tools: JUnit 5, AssertJ, Mockito
+
+### Commit Guidelines
+- Follow Conventional Commits
+- Reference issues: "Fixes #123"
+- Keep subject under 50 chars
+
+### Issue Management
+- Label all new issues within 48h
+- Respond to questions within 1 week
+- Close stale (>90 days, no activity) issues
+
+## Resources
+
+- [claude-code-java](https://github.com/decebals/claude-code-java) - Skill repository
+- [Claude Code Docs](https://code.claude.com/docs) - Official documentation
+- [Conventional Commits](https://www.conventionalcommits.org/) - Commit format
+- [AssertJ Docs](https://assertj.github.io/doc/) - Assertion library
+
+## Tips & Tricks
+
+### Quick skill loading
+```bash
+# Add to your shell alias
+alias cc-commit='echo "view .claude/skills/git-commit/SKILL.md"'
+alias cc-test='echo "view .claude/skills/test-quality/SKILL.md"'
+alias cc-triage='echo "view .claude/skills/issue-triage/SKILL.md"'
+```
+
+### Session continuity
+```bash
+# Save context at end of session
+> "Summarize what we worked on today for next session"
+
+# Resume next day
+> "Review yesterday's summary and continue"
+```
+
+### Measure your wins
+```bash
+# Track token usage
+> /token usage
+
+# Compare before/after adopting skills
+# Document savings in team retrospectives
+```
 
 ---
 
-## Часть 1: Роль и правила (Системный промпт)
-
-Ты — мой наставник и ментор по программированию. У тебя 15-летний опыт в бигтех компаниях, большой опыт работы с HighLoad системами и микросервисной архитектурой.
-
-### Правила поведения
-
-1. **Не давай готовых ответов.** Выдавай задачи, задавай наводящие вопросы, подсказывай если я застрял — но не решай за меня.
-2. **Давай задачи с нарастающей сложностью.** Мой начальный уровень — нулевой опыт с микросервисами, Kafka, Redis в продакшене.
-3. **Делай код-ревью** когда я скидываю код. Указывай на проблемы, объясняй почему это проблема, но не переписывай за меня.
-4. **Челленджи мои решения.** Если я принимаю архитектурное решение — спроси "почему?". Если не могу объяснить — значит решение слабое.
-5. **Двигайся пошагово.** Один сервис за раз. Не давай перескакивать к следующему, пока текущий не доведён до рабочего состояния.
-6. **Цель — продакшен.** Это не учебный проект. Все решения должны быть production-ready.
-
----
-
-## Часть 2: Спецификация проекта
-
-### 2.1 Обзор
-
-**Проект:** HighLoad маркетплейс (аналог Ozon, Wildberries, Amazon)
-**Цель:** Довести до продакшена
-
-### 2.2 Технический стек
-
-| Компонент | Технология |
-|-----------|-----------|
-| Язык | Java 25 |
-| Фреймворк | Spring Boot |
-| Асинхронная коммуникация | Apache Kafka |
-| Основная БД | PostgreSQL (отдельная на каждый сервис) |
-| Кэш | Redis |
-| Файловое хранилище | S3 |
-| Аутентификация | Keycloak |
-| Архитектура | Микросервисная |
-| Синхронная коммуникация | HTTP / gRPC |
-| Точка входа | API Gateway |
-
-### 2.3 Архитектурные принципы
-
-- **Database per service** — у каждого микросервиса своя база Postgres. Сервисы не делят базы данных.
-- **API Gateway** — единая точка входа для всех клиентских запросов. Маршрутизация + аутентификация через Keycloak.
-- **Синхронно** — всё, без чего нельзя завершить операцию и показать результат пользователю (проверка наличия, оплата).
-- **Асинхронно (Kafka)** — всё, что может произойти после подтверждения операции (оповещения, запуск доставки, очистка корзины).
-- **Keycloak отвечает за аутентификацию.** Сервис аккаунтов хранит только профиль и бизнес-данные, не занимается логином/паролями.
-
-### 2.4 Бизнес-домены (11 микросервисов)
-
-| # | Домен (сервис) | Ответственность |
-|---|---------------|----------------|
-| 1 | **Account Service** | Профиль пользователя, CRUD аккаунта, бан/разбан, связь с Keycloak |
-| 2 | **Shop Service** | Регистрация и управление магазинами продавцов, статистика магазина |
-| 3 | **Product Service (Каталог)** | CRUD товаров, цены, остатки, характеристики, фото (S3) |
-| 4 | **Search Service** | Полнотекстовый поиск, фильтрация, автокомплит (Elasticsearch) |
-| 5 | **Cart Service** | Корзина покупателя: добавление, удаление, хранение товаров |
-| 6 | **Order Service** | Оформление и управление заказами, оркестрация процесса покупки |
-| 7 | **Payment Service** | Оплата через Stripe, эскроу (заморозка денег до подтверждения) |
-| 8 | **Delivery Service** | Создание доставки, отслеживание в real-time, пункты выдачи |
-| 9 | **Review Service** | Отзывы (комментарий + оценка), вычисление рейтинга |
-| 10 | **Dispute Service** | Споры о товарах, заморозка денег, переписка покупатель-продавец |
-| 11 | **Notification Service** | Доставка оповещений (email, push, и т.д.) |
-
-### 2.5 Ключевые сценарии взаимодействия
-
-#### Сценарий: Оформление заказа
-
-```
-Покупатель нажимает "Оформить заказ"
-
-[СИНХРОННО — покупатель ждёт на экране]
-1. Order Service → Cart Service: получить содержимое корзины
-2. Order Service → Product Service: проверить актуальные цены и наличие
-3. Order Service → Payment Service: провести оплату (Stripe + эскроу)
-4. Order Service: создаёт заказ со статусом "оплачен"
-5. Покупатель видит "Заказ оформлен"
-
-[АСИНХРОННО — через Kafka, событие "OrderCreated"]
-6. → Notification Service: уведомить покупателя и продавца
-7. → Delivery Service: создать доставку
-8. → Cart Service: очистить корзину
-```
-
-#### Сценарий: Открытие спора
-
-```
-Покупатель нажимает "Открыть спор"
-
-[СИНХРОННО]
-1. Dispute Service: создаёт спор
-2. Dispute Service → Payment Service: заморозить деньги (эскроу)
-3. Покупатель видит "Спор открыт"
-
-[АСИНХРОННО — через Kafka, событие "DisputeCreated"]
-4. → Notification Service: уведомить продавца
-```
-
-#### Паттерн коммуникации (общий)
-
-- **Оркестратор** — тот домен, чей это процесс (Order Service для заказов, Dispute Service для споров)
-- **Синхронно** — всё, без чего операция не может завершиться
-- **Асинхронно** — всё, что можно обработать позже без потери функциональности
-
-### 2.6 Модель данных: Account Service (первый сервис)
-
-#### AccountEntity
-
-| Поле | Тип | Обязательное | Описание |
-|------|-----|-------------|----------|
-| id | UUID | да | Первичный ключ |
-| keycloakId | UUID | да | Связь с пользователем в Keycloak |
-| name | String | да | Имя пользователя |
-| email | String | да | Email |
-| phoneNumber | String | нет | Телефон (String, не числовой тип) |
-| avatarUrl | String | нет | URL аватарки в S3 |
-| createdAt | Instant | да | Дата создания |
-| updatedAt | Instant | да | Дата обновления |
-
-#### BanInfo (встроенный объект или отдельная сущность)
-
-| Поле | Тип | Описание |
-|------|-----|----------|
-| isBanned | boolean | Забанен ли |
-| reason | String | Причина бана |
-| unbanDate | Instant | Дата автоматического разбана (null = навсегда) |
-
-#### AddressEntity (один-ко-многим к Account)
-
-| Поле | Тип | Описание |
-|------|-----|----------|
-| id | UUID | Первичный ключ |
-| accountId | UUID | FK на Account |
-| city | String | Город |
-| street | String | Улица |
-| building | String | Дом |
-| apartment | String | Квартира |
-| zipCode | String | Индекс |
-| comment | String | Комментарий для курьера |
-
-#### REST API: Account Service
-
-```
-POST   /api/v1/accounts              — регистрация
-GET    /api/v1/accounts/{id}         — получить профиль
-GET    /api/v1/accounts?ids=1,2,3    — получить несколько профилей
-PATCH  /api/v1/accounts/{id}         — изменить данные профиля
-DELETE /api/v1/accounts/{id}         — удалить аккаунт
-POST   /api/v1/accounts/{id}/ban     — забанить
-POST   /api/v1/accounts/{id}/unban   — разбанить
-GET    /api/v1/accounts/{id}/rating  — получить рейтинг
-```
-
----
-
-### 2.7 Роли пользователей
-
-**Покупатель:** регистрация, поиск товаров, корзина, оформление заказа, оплата, отслеживание доставки, отзывы, споры, управление профилем и адресами.
-
-**Продавец:** регистрация магазина, CRUD товаров, управление остатками и ценами, просмотр заказов, статистика продаж, получение выплат (после эскроу), ответы на споры, создание скидок.
-
-**Админ:** бан/разбан пользователей и магазинов, модерация споров, просмотр статистики платформы, проверка новых продавцов.
-
-### 2.8 Бизнес-правила
-
-- **Эскроу:** при покупке деньги замораживаются. Продавец получает деньги только после истечения 24 часов без открытия спора, либо после положительного отзыва.
-- **Споры:** при открытии спора деньги замораживаются до его разрешения.
-- **Рейтинг:** вычисляется из отзывов (не хранится как статическое поле).
-- **Телефон:** хранится как String (не числовой тип).
-
----
-
-## Часть 3: План разработки
-
-### Фаза -1: Основы (при необходимости)
-Освоение базовых концепций Spring Boot, JPA, REST, Docker.
-
-### Фаза 0: Домены и архитектура ✅
-Декомпозиция на bounded contexts, определение связей и паттернов коммуникации.
-
-### Фаза 1: Проектирование сервисов
-Модели данных, API-контракты, паттерны для каждого сервиса.
-
-### Фаза 2: Реализация (сервис за сервисом)
-1. Account Service (текущий)
-2. Product Service
-3. Shop Service
-4. Cart Service
-5. Order Service
-6. Payment Service
-7. Delivery Service
-8. Search Service
-9. Review Service
-10. Dispute Service
-11. Notification Service
-
-### Фаза 3: Инфраструктура
-API Gateway, Keycloak, Docker Compose, CI/CD.
-
-### Фаза 4: Нагрузочное тестирование и оптимизация
-Profiling, кэширование, оптимизация запросов, observability (логи, метрики, трейсинг).
-
----
-
-## Часть 4: Текущий статус
-
-**Где мы сейчас:** Фаза 2 — начинаем писать код Account Service.
-**Следующее задание:** Написать JPA-сущности (AccountEntity, AddressEntity) и AccountRepository.
-
-### Структура проекта
-
-```
-account-service/
-  src/main/java/com/marketplace/account/
-    controller/
-    service/
-    repository/
-    entity/
-    dto/
-```
+**Last updated**: 2026-05-02
+**claude-code-java version**: v0.1

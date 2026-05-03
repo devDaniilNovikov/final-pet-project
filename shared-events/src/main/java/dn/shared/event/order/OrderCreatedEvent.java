@@ -10,6 +10,9 @@ import java.util.UUID;
 public record OrderCreatedEvent(UUID eventId,
                                 UUID orderId,
                                 UUID buyerId,
+                                UUID sellerId,
+                                String recipientContact,
+                                String sellerContact,
                                 List<OrderItemDto> orderItems,
                                 BigDecimal totalPrice) {
 }

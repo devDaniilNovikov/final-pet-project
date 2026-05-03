@@ -25,8 +25,6 @@ public class TransactionConfiguration {
                 platformTransactionManager,
                 transactionDefinition
         );
-        transactionTemplate.setIsolationLevel(3);
-        transactionTemplate.setTimeout(2);
         return new TransactionTemplate(platformTransactionManager,transactionDefinition);
     }
 

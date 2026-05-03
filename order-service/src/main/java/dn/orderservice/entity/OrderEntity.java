@@ -9,6 +9,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
@@ -56,13 +57,20 @@ public class OrderEntity {
     private List<OrderItemEntity> orderItemEntities;
 
     @CreationTimestamp
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
     @UpdateTimestamp
-    private LocalDateTime updatedAt;
+    private Instant updatedAt;
 
     @Version
     private Integer lockVersion;
+
+    @PrePersist
+    public void prePersist(){
+        if (createdAt == null) {
+            createdAt = Instant.now();
+        }
+    }
 
     @Override
     public boolean equals(Object o) {

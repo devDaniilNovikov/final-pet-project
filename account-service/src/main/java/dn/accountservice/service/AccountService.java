@@ -1,11 +1,10 @@
 package dn.accountservice.service;
-import dn.accountservice.config.kafka.AccountEventProducer;
 import dn.accountservice.dto.BanRequest;
+import dn.shared.event.account.*;
 import dn.accountservice.dto.account.ListAccountResponse;
 import dn.accountservice.dto.account.AccountRequest;
 import dn.accountservice.dto.account.AccountResponse;
 import dn.accountservice.entity.AccountEntity;
-import dn.accountservice.event.*;
 import dn.accountservice.exception.AccountNotFoundException;
 import dn.accountservice.mapper.AccountMapper;
 import dn.accountservice.repository.AccountRepository;
@@ -21,11 +20,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.text.MessageFormat;
 import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -36,16 +32,17 @@ public class AccountService {
 
     private final AccountRepository accountRepository;
     private final AccountMapper accountMapper;
-    private final AccountEventProducer accountEventProducer;
+    private final AccountOutboxService outboxService;
     private final CacheManager cacheManager;
+    private final AccountEventFactory accountEventFactory;
 
-    @Cacheable(value = "accounts",key = "'id:' + #accountId")
+    @Cacheable(value = "accounts",key = "'eventId:' + #accountId")
     public AccountResponse findById(String accountId){
         UUID id = IdMapper.mapToUUIDFromString(accountId);
         return accountRepository.findById(id)
                 .map(accountMapper::toResponse)
-                .orElseThrow(()->new AccountNotFoundException(
-                        MessageFormat.format("Account with id={0} not found",accountId)));
+                .orElseThrow(() -> new AccountNotFoundException(
+                        MessageFormat.format("Account with eventId={0} not found",accountId)));
     }
 
 
@@ -68,21 +65,24 @@ public class AccountService {
                 })
                 .toList();
         accountRepository.saveAll(accounts);
+        accounts.forEach(account -> {
+            var accountBannedEvent = accountEventFactory.createAccountBannedEvent(
+                    account,
+                    request.getReason(),
+                    request.getUnbanDate()
+            );
+            outboxService.createOutbox(accountBannedEvent);
+        });
         log.info("Banned accounts with ids={}", ids);
-        accounts.forEach(account -> accountEventProducer.sendAccountBannedEvent(
-                AccountBannedEvent.builder()
-                            .id(account.getId().toString())
-                            .reason(request.getReason())
-                            .unbanDate(request.getUnbanDate())
-                            .build()
-        ));
+
     }
+
 
 
 
     public ListAccountResponse findAll(int pageNumber, int pageSize) {
         ListAccountResponse listAccountResponse = new ListAccountResponse();
-        PageRequest  pageRequest = PageRequest.of(pageNumber, pageSize);
+        PageRequest pageRequest = PageRequest.of(pageNumber, pageSize);
         List<AccountResponse> accountEntities =  accountRepository.findAll(pageRequest)
                 .stream()
                 .map(accountMapper::toResponse)
@@ -107,15 +107,13 @@ public class AccountService {
         AccountEntity accountEntity = accountMapper.toEntity(accountRequest);
         attachAddresses(accountEntity);
         var accountForSave = accountRepository.save(accountEntity);
-        accountEventProducer.sendAccountCreatedEvent(
-                new AccountCreatedEvent(accountForSave.getUsername(),
-                accountForSave.getId().toString())
-        );
+        var accountCreateEvent = accountEventFactory.createAccountCreatedEvent(accountEntity);
+        outboxService.createOutbox(accountCreateEvent);
         return accountMapper.toResponse(accountForSave);
     }
 
     @Transactional
-    @CacheEvict(value = "accounts", key = "'id:' + #accountId")
+    @CacheEvict(value = "accounts", key = "'eventId:' + #accountId")
     public void updateAccount(String accountId,
                               AccountRequest accountRequest) {
         UUID id = IdMapper.mapToUUIDFromString(accountId);
@@ -124,15 +122,12 @@ public class AccountService {
                     Objects.requireNonNull(cacheManager.getCache("accounts")).evict("username:" + account.getUsername());
                     accountMapper.updateEntity(accountRequest,account);
                     accountRepository.save(account);
-                    accountEventProducer.sendAccountUpdatedEvent(
-                            AccountUpdatedEvent.builder()
-                                    .id(id.toString())
-                                    .updatedTime(account.getUpdatedAt())
-                                    .build());
-                    log.info("Updated account with id: {}", accountId);
+                    var accountUpdatedEvent = accountEventFactory.createAccountUpdatedEvent(account);
+                    outboxService.createOutbox(accountUpdatedEvent);
+                    log.info("Updated account with eventId: {}", accountId);
                 }, () -> {
                     throw new AccountNotFoundException(
-                            MessageFormat.format("Account with id={0} not found",accountId));
+                            MessageFormat.format("Account with eventId={0} not found",accountId));
                 });
     }
 
@@ -142,7 +137,11 @@ public class AccountService {
             throw new IllegalArgumentException("Ids can't be empty");
         }
         List<UUID> ids = IdMapper.mapToListUUIDFromString(accountIds);
-        listAccountResponse.setAccounts(accountMapper.toResponseList(accountRepository.findAllById(ids)));
+        List<AccountResponse> accounts = accountRepository.findAllById(ids)
+                .stream()
+                .map(accountMapper::toResponse)
+                .toList();
+        listAccountResponse.setAccounts(accounts);
         return listAccountResponse;
     }
 
@@ -151,44 +150,40 @@ public class AccountService {
 
 
     @Transactional
-    @CacheEvict(value = "accounts", key = "'id:' + #accountId")
+    @CacheEvict(value = "accounts", key = "'eventId:' + #accountId")
     public void deleteAccountById(String accountId) {
         var account = accountRepository.findById(IdMapper.mapToUUIDFromString(accountId))
                 .orElseThrow(()->new AccountNotFoundException(
-                        MessageFormat.format("Account with id={0} not found",accountId)));
+                        MessageFormat.format("Account with eventId={0} not found",accountId)));
         Objects.requireNonNull(cacheManager.getCache("accounts"))
                 .evict("username:" + account.getUsername());
+        account.setUpdatedAt(Instant.now());
         accountRepository.deleteById(account.getId());
-        accountEventProducer.sendAccountDeletedEvent(AccountDeletedEvent.builder()
-                .id(account.getId().toString())
-                .deletedDate(Instant.now())
-                .build());
-        log.info("Deleted account with id={}", accountId);
+        var accountDeletedEvent = accountEventFactory.createAccountDeletedEvent(account);
+        outboxService.createOutbox(accountDeletedEvent);
+        log.info("Deleted account with eventId={}", accountId);
     }
 
     @Transactional
     @CacheEvict(value = "accounts",allEntries = true)
-    public void deleteAccountsByIds(List<String> accountIds) {
+    public void deleteAccountsByIds(List<UUID> accountIds) {
         if (accountIds.isEmpty()) {
             throw new IllegalArgumentException("Ids can't be empty");
         }
-        List<UUID> ids = IdMapper.mapToListUUIDFromString(accountIds);
-        var accountsForDelete = accountRepository.findAllById(ids);
-        var essentialsIds = accountsForDelete.stream()
+        var accountsForDelete = accountRepository.findAllById(accountIds);
+        List<UUID> essentialsIds = accountsForDelete.stream()
                         .map(AccountEntity::getId)
                         .toList();
         accountRepository.deleteAllByIdInBatch(essentialsIds);
-        essentialsIds.forEach(id -> {
-                 accountEventProducer.sendAccountDeletedEvent(AccountDeletedEvent.builder()
-                            .id(id.toString())
-                            .deletedDate(Instant.now())
-                            .build());
+        accountsForDelete.forEach(account -> {
+            var accountDeletedEvent = accountEventFactory.createAccountDeletedEvent(account);
+            outboxService.createOutbox(accountDeletedEvent);
         });
         log.info("Deleted accounts with ids={}", accountIds);
     }
 
     @Transactional
-    @CacheEvict(value = "accounts", key = "'id:' + #accountId")
+    @CacheEvict(value = "accounts", key = "'eventId:' + #accountId")
     public void unbanAccount(String accountId) {
         UUID id = IdMapper.mapToUUIDFromString(accountId);
         accountRepository.findById(id)
@@ -201,21 +196,19 @@ public class AccountService {
                     banInfo.setUnbanDate(null);
                     account.setBanInfo(banInfo);
                     accountRepository.save(account);
-                    accountEventProducer.sendAccountUnbannedEvent(
-                            AccountUnbannedEvent.builder()
-                                    .unbannedDate(Instant.now())
-                                    .id(id.toString())
-                                    .build()
-                    );
-                    log.info("Unbanned account with id={}", accountId);
+                    var accountBannedEvent = accountEventFactory.createAccountUnbannedEvent(account);
+                    outboxService.createOutbox(accountBannedEvent);
+                    log.info("Unbanned account with eventId={}", accountId);
                 },()->{
                     throw new AccountNotFoundException(
-                            MessageFormat.format("Account with id={0} not found", accountId));
+                            MessageFormat.format("Account with eventId={0} not found", accountId));
                 });
     }
 
+
+
     @Transactional
-    @CacheEvict(value = "accounts", key = "'id:' + #id")
+    @CacheEvict(value = "accounts", key = "'eventId:' + #eventId")
     public void banAccount(String id, BanRequest banRequest) {
         UUID accountId = IdMapper.mapToUUIDFromString(id);
         accountRepository.findById(accountId)
@@ -228,16 +221,15 @@ public class AccountService {
                     banInfo.setIsBanned(true);
                     account.setBanInfo(banInfo);
                     accountRepository.save(account);
-                    accountEventProducer.sendAccountBannedEvent(
-                            new AccountBannedEvent(account.getId().toString(),
-                                    banInfo.getUnbanDate(),
-                                    banInfo.getReason())
+                    var accountBannedEvent = accountEventFactory.createAccountBannedEvent(
+                            account,banRequest.getReason(),banRequest.getUnbanDate()
                     );
+                    outboxService.createOutbox(accountBannedEvent);
                     var unbanDate = banInfo.getUnbanDate();
-                    log.info("Banned account with id={}, unban date={}",accountId, unbanDate);
+                    log.info("Banned account with eventId={}, unban date={}",accountId, unbanDate);
                 },()->{
                     throw new AccountNotFoundException(
-                            MessageFormat.format("Account with id={0} not found",accountId));
+                            MessageFormat.format("Account with eventId={0} not found",accountId));
                 });
     }
 

@@ -1,17 +1,14 @@
 package dn.accountservice.service;
 
-import dn.accountservice.config.kafka.AccountEventProducer;
 import dn.accountservice.dto.BanRequest;
 import dn.accountservice.dto.account.AccountRequest;
 import dn.accountservice.dto.account.AccountResponse;
 import dn.accountservice.dto.account.ListAccountResponse;
 import dn.accountservice.entity.AccountEntity;
-import dn.accountservice.event.AccountBannedEvent;
-import dn.accountservice.event.AccountCreatedEvent;
-import dn.accountservice.event.AccountDeletedEvent;
 import dn.accountservice.exception.AccountNotFoundException;
 import dn.accountservice.mapper.AccountMapper;
 import dn.accountservice.repository.AccountRepository;
+import dn.shared.event.account.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -22,6 +19,8 @@ import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 
@@ -47,7 +46,16 @@ class AccountServiceTest {
     private AccountMapper accountMapper;
 
     @Mock
-    private AccountEventProducer accountEventProducer;
+    private AccountOutboxService outboxService;
+
+    @Mock
+    private CacheManager cacheManager;
+
+    @Mock
+    private Cache accountsCache;
+
+    @Mock
+    private AccountEventFactory accountEventFactory;
 
     @InjectMocks
     private AccountService accountService;
@@ -77,10 +85,12 @@ class AccountServiceTest {
         accountEntity.setEmail("test@example.com");
 
         accountResponse = AccountResponse.builder()
-                .id(accountIdStr)
+                .id(UUID.fromString(accountIdStr))
                 .username("testuser")
                 .email("test@example.com")
                 .build();
+
+        lenient().when(cacheManager.getCache("accounts")).thenReturn(accountsCache);
     }
 
     @Nested
@@ -96,7 +106,7 @@ class AccountServiceTest {
             AccountResponse result = accountService.findById(accountIdStr);
 
             assertThat(result).isNotNull();
-            assertThat(result.getId()).isEqualTo(accountIdStr);
+            assertThat(result.getId()).isEqualTo(accountId);
             assertThat(result.getUsername()).isEqualTo("testuser");
             verify(accountRepository).findById(accountId);
         }
@@ -161,16 +171,22 @@ class AccountServiceTest {
             when(accountMapper.toEntity(request)).thenReturn(accountEntity);
             when(accountRepository.save(accountEntity)).thenReturn(accountEntity);
             when(accountMapper.toResponse(accountEntity)).thenReturn(accountResponse);
+            AccountCreatedEvent createdEvent = AccountCreatedEvent.builder()
+                    .accountId(accountId)
+                    .eventId(UUID.randomUUID())
+                    .username("testuser")
+                    .build();
+            when(accountEventFactory.createAccountCreatedEvent(accountEntity)).thenReturn(createdEvent);
 
             AccountResponse result = accountService.createAccount(request);
 
             assertThat(result).isNotNull();
             verify(accountRepository).save(accountEntity);
-            verify(accountEventProducer).sendAccountCreatedEvent(createdEventCaptor.capture());
+            verify(outboxService).createOutbox(createdEventCaptor.capture());
 
             AccountCreatedEvent event = createdEventCaptor.getValue();
             assertThat(event.username()).isEqualTo("testuser");
-            assertThat(event.id()).isEqualTo(accountIdStr);
+            assertThat(event.accountId()).isEqualTo(accountId);
         }
     }
 
@@ -188,11 +204,18 @@ class AccountServiceTest {
 
             when(accountRepository.findById(accountId)).thenReturn(Optional.of(accountEntity));
             when(accountRepository.save(accountEntity)).thenReturn(accountEntity);
+            AccountUpdatedEvent updatedEvent = AccountUpdatedEvent.builder()
+                    .id(accountId)
+                    .eventId(UUID.randomUUID())
+                    .updatedTime(Instant.now())
+                    .build();
+            when(accountEventFactory.createAccountUpdatedEvent(accountEntity)).thenReturn(updatedEvent);
 
             accountService.updateAccount(accountIdStr, request);
 
             verify(accountMapper).updateEntity(request, accountEntity);
             verify(accountRepository).save(accountEntity);
+            verify(outboxService).createOutbox(updatedEvent);
         }
 
         @Test
@@ -222,7 +245,7 @@ class AccountServiceTest {
             when(accountRepository.findAll(pageRequest)).thenReturn(page);
             when(accountMapper.toResponse(accountEntity)).thenReturn(accountResponse);
 
-            ListAccountResponse result = accountService.findAll(10, 0);
+            ListAccountResponse result = accountService.findAll(0, 10);
 
             assertThat(result.getAccounts()).hasSize(1);
             assertThat(result.getAccounts().get(0).getUsername()).isEqualTo("testuser");
@@ -236,7 +259,7 @@ class AccountServiceTest {
 
             when(accountRepository.findAll(pageRequest)).thenReturn(emptyPage);
 
-            ListAccountResponse result = accountService.findAll(10, 0);
+            ListAccountResponse result = accountService.findAll(0, 10);
 
             assertThat(result.getAccounts()).isEmpty();
         }
@@ -247,14 +270,13 @@ class AccountServiceTest {
     class GetAccountsByIds {
 
         @Test
-        @DisplayName("должен вернуть аккаунты по списку id")
+        @DisplayName("должен вернуть аккаунты по списку eventId")
         void shouldReturnAccountsByIds() {
             List<String> ids = List.of(accountIdStr);
             List<AccountEntity> entities = List.of(accountEntity);
-            List<AccountResponse> responses = List.of(accountResponse);
 
             when(accountRepository.findAllById(List.of(accountId))).thenReturn(entities);
-            when(accountMapper.toResponseList(entities)).thenReturn(responses);
+            when(accountMapper.toResponse(accountEntity)).thenReturn(accountResponse);
 
             ListAccountResponse result = accountService.getAccountsByIds(ids);
 
@@ -262,7 +284,7 @@ class AccountServiceTest {
         }
 
         @Test
-        @DisplayName("должен выбросить IllegalArgumentException при пустом списке id")
+        @DisplayName("должен выбросить IllegalArgumentException при пустом списке eventId")
         void shouldThrowOnEmptyIds() {
             assertThatThrownBy(() -> accountService.getAccountsByIds(Collections.emptyList()))
                     .isInstanceOf(IllegalArgumentException.class)
@@ -277,13 +299,21 @@ class AccountServiceTest {
         @Test
         @DisplayName("должен удалить аккаунт и отправить событие")
         void shouldDeleteAndSendEvent() {
+            AccountDeletedEvent deletedEvent = AccountDeletedEvent.builder()
+                    .id(accountId)
+                    .eventId(UUID.randomUUID())
+                    .deletedDate(Instant.now())
+                    .build();
+            when(accountRepository.findById(accountId)).thenReturn(Optional.of(accountEntity));
+            when(accountEventFactory.createAccountDeletedEvent(accountEntity)).thenReturn(deletedEvent);
+
             accountService.deleteAccountById(accountIdStr);
 
             verify(accountRepository).deleteById(accountId);
-            verify(accountEventProducer).sendAccountDeletedEvent(deletedEventCaptor.capture());
+            verify(outboxService).createOutbox(deletedEventCaptor.capture());
 
             AccountDeletedEvent event = deletedEventCaptor.getValue();
-            assertThat(event.id()).isEqualTo(accountIdStr);
+            assertThat(event.id()).isEqualTo(accountId);
             assertThat(event.deletedDate()).isNotNull();
         }
     }
@@ -296,12 +326,21 @@ class AccountServiceTest {
         @DisplayName("должен удалить аккаунты и отправить события для каждого")
         void shouldDeleteAllAndSendEvents() {
             UUID id2 = UUID.randomUUID();
-            List<String> ids = List.of(accountIdStr, id2.toString());
+            AccountEntity entity2 = new AccountEntity();
+            entity2.setId(id2);
+            List<UUID> ids = List.of(accountId, id2);
+            when(accountRepository.findAllById(ids)).thenReturn(List.of(accountEntity, entity2));
+            when(accountEventFactory.createAccountDeletedEvent(any(AccountEntity.class)))
+                    .thenAnswer(invocation -> AccountDeletedEvent.builder()
+                            .id(invocation.<AccountEntity>getArgument(0).getId())
+                            .eventId(UUID.randomUUID())
+                            .deletedDate(Instant.now())
+                            .build());
 
             accountService.deleteAccountsByIds(ids);
 
             verify(accountRepository).deleteAllByIdInBatch(List.of(accountId, id2));
-            verify(accountEventProducer, times(2)).sendAccountDeletedEvent(any(AccountDeletedEvent.class));
+            verify(outboxService, times(2)).createOutbox(any(AccountDeletedEvent.class));
         }
 
         @Test
@@ -330,6 +369,14 @@ class AccountServiceTest {
 
             when(accountRepository.findById(accountId)).thenReturn(Optional.of(accountEntity));
             when(accountRepository.save(accountEntity)).thenReturn(accountEntity);
+            AccountBannedEvent bannedEvent = AccountBannedEvent.builder()
+                    .id(accountId)
+                    .eventId(UUID.randomUUID())
+                    .reason("spam")
+                    .unbanDate(unbanDate)
+                    .build();
+            when(accountEventFactory.createAccountBannedEvent(accountEntity, "spam", unbanDate))
+                    .thenReturn(bannedEvent);
 
             accountService.banAccount(accountIdStr, banRequest);
 
@@ -338,9 +385,9 @@ class AccountServiceTest {
             assertThat(accountEntity.getBanInfo().getReason()).isEqualTo("spam");
             assertThat(accountEntity.getBanInfo().getUnbanDate()).isEqualTo(unbanDate);
 
-            verify(accountEventProducer).sendAccountBannedEvent(bannedEventCaptor.capture());
+            verify(outboxService).createOutbox(bannedEventCaptor.capture());
             AccountBannedEvent event = bannedEventCaptor.getValue();
-            assertThat(event.id()).isEqualTo(accountIdStr);
+            assertThat(event.id()).isEqualTo(accountId);
             assertThat(event.reason()).isEqualTo("spam");
         }
 
@@ -381,13 +428,21 @@ class AccountServiceTest {
 
             when(accountRepository.findAllById(List.of(accountId, id2)))
                     .thenReturn(List.of(accountEntity, entity2));
-            when(accountRepository.save(any(AccountEntity.class)))
-                    .thenAnswer(invocation -> invocation.getArgument(0));
+            when(accountEventFactory.createAccountBannedEvent(
+                    any(AccountEntity.class),
+                    eq("violation"),
+                    eq(unbanDate)
+            )).thenAnswer(invocation -> AccountBannedEvent.builder()
+                    .id(invocation.<AccountEntity>getArgument(0).getId())
+                    .eventId(UUID.randomUUID())
+                    .reason("violation")
+                    .unbanDate(unbanDate)
+                    .build());
 
             accountService.banAccountsByIds(ids, banRequest);
 
-            verify(accountRepository, times(2)).save(any(AccountEntity.class));
-            verify(accountEventProducer, times(2)).sendAccountBannedEvent(any(AccountBannedEvent.class));
+            verify(accountRepository).saveAll(List.of(accountEntity, entity2));
+            verify(outboxService, times(2)).createOutbox(any(AccountBannedEvent.class));
         }
 
         @Test
@@ -415,11 +470,18 @@ class AccountServiceTest {
 
             when(accountRepository.findById(accountId)).thenReturn(Optional.of(accountEntity));
             when(accountRepository.save(accountEntity)).thenReturn(accountEntity);
+            AccountUnbannedEvent unbannedEvent = AccountUnbannedEvent.builder()
+                    .id(accountId)
+                    .eventId(UUID.randomUUID())
+                    .unbannedDate(Instant.now())
+                    .build();
+            when(accountEventFactory.createAccountUnbannedEvent(accountEntity)).thenReturn(unbannedEvent);
 
             accountService.unbanAccount(accountIdStr);
 
             assertThat(accountEntity.getBanInfo().getIsBanned()).isFalse();
             verify(accountRepository).save(accountEntity);
+            verify(outboxService).createOutbox(unbannedEvent);
         }
 
         @Test

@@ -3,7 +3,7 @@ import dn.orderservice.entity.OrderEntity;
 import dn.orderservice.enums.OrderStatus;
 import dn.orderservice.exception.OrderNotFoundException;
 import dn.orderservice.repository.OrderRepository;
-import dn.orderservice.service.outbox.OutboxService;
+import dn.shared.outbox.*;
 import dn.shared.idempotency.ProcessedEventEntity;
 import dn.shared.idempotency.ProcessedEventRepository;
 import dn.shared.event.inventory.InventoryReservationFailedEvent;

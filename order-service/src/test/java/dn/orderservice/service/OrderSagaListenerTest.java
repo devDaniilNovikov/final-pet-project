@@ -5,7 +5,7 @@ import dn.orderservice.enums.OrderStatus;
 import dn.orderservice.exception.OrderNotFoundException;
 import dn.orderservice.repository.OrderRepository;
 import dn.orderservice.service.order.OrderSagaListener;
-import dn.orderservice.service.outbox.OutboxService;
+import dn.shared.outbox.OutboxService;
 import dn.shared.event.inventory.InventoryReservationFailedEvent;
 import dn.shared.event.inventory.InventoryReservedEvent;
 import dn.shared.event.payment.PaymentFailedEvent;

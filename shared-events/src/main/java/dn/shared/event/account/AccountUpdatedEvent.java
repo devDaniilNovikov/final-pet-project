@@ -1,12 +1,11 @@
-package dn.accountservice.event;
+package dn.shared.event.account;
 
 import lombok.Builder;
 
 import java.time.Instant;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Builder
-public record AccountUpdatedEvent(String id,
+public record AccountUpdatedEvent(UUID eventId,
+                                  UUID id,
                                   Instant updatedTime){}

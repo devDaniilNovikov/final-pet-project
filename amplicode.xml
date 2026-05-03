@@ -18,6 +18,17 @@
         </packages>
       </persistence-unit>
       <persistence-unit moduleName="FinalPetProject.shared-events.main" name="Default" />
+      <persistence-unit moduleName="notification-service.main" name="Default">
+        <packages>
+          <package value="dn.notificationservice" />
+        </packages>
+      </persistence-unit>
+      <persistence-unit moduleName="FinalPetProject.notification-service.main" name="Default">
+        <packages>
+          <package value="dn.notificationservice" />
+        </packages>
+      </persistence-unit>
+      <persistence-unit moduleName="notification-service.shared-events.main" name="Default" />
     </persistence-units>
   </component>
 </project>

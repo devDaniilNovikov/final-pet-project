@@ -10,6 +10,7 @@ import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.springframework.data.domain.AfterDomainEventPublication;
 
 import java.io.Serial;
 import java.io.Serializable;
@@ -67,6 +68,16 @@ public class AccountEntity {
             orphanRemoval = true,
             fetch = FetchType.LAZY)
     private List<AddressEntity> addresses = new ArrayList<>();
+
+    @PrePersist
+    public void prePersist(){
+        if (createdAt == null) {
+            createdAt = Instant.now();
+        }
+    }
+
+
+
 
     @Embedded
     private BanInfo banInfo;

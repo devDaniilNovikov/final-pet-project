@@ -19,6 +19,7 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 import java.time.Duration;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.Flow;
 import java.util.concurrent.TimeUnit;
 
 @Configuration
@@ -40,6 +41,8 @@ public class RedisConfig {
     private Duration ttl;
 
     private static final String CACHE_PREFIX = "#";
+
+    private final Set<String> cacheNames = Set.of(ACCOUNT_CACHE_NAME,ACCOUNT_CACHE_NAME);
 
 
 
@@ -72,7 +75,6 @@ public class RedisConfig {
 
     @Bean
     public RedisCacheManager redisCacheManager(RedisConnectionFactory redisConnectionFactory) {
-        Set<String> cacheNames = Set.of(ACCOUNT_CACHE_NAME,ACCOUNTS_CACHE_NAME);
         return RedisCacheManager.builder()
                 .transactionAware()
                 .cacheDefaults(redisCacheConfiguration())

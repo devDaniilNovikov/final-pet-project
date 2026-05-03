@@ -51,7 +51,8 @@ public class OrderController {
     @GetMapping(GET_ORDER_BY_ID)
     @ResponseStatus(HttpStatus.OK)
     public OrderResponse getOrderById(
-            @Parameter(description = "UUID заказа", required = true) @PathVariable("orderId") UUID id) {
+            @Parameter(description = "UUID заказа", required = true)
+            @PathVariable("orderId") UUID id) {
         return orderService.getOrderById(id);
     }
 }

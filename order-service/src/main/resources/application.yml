@@ -15,8 +15,8 @@ spring:
 
   datasource:
     driver-class-name: org.postgresql.Driver
-    password: ${POSTGRES_USERNAME}
-    username: ${POSTGRES_PASSWORD}
+    username: ${POSTGRES_USERNAME}
+    password: ${POSTGRES_PASSWORD}
     url: ${POSTGRES_URL}
   liquibase:
     analytics-enabled: true
@@ -75,4 +75,4 @@ app:
      order-service-dlt: order.service.dlt
   http:
     client:
-      product-service: ${HTTP_CLIENT_PRODUCT_SERVICE_URL}
+      product-service: ${HTTP_CLIENT_P RODUCT_SERVICE_URL}

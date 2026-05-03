@@ -1,7 +1,6 @@
 package dn.accountservice.config.kafka;
 
-
-import dn.accountservice.event.*;
+import dn.shared.event.account.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -53,23 +52,23 @@ public class AccountEventProducer {
 
 
     public void sendAccountCreatedEvent(AccountCreatedEvent event) {
-        send(accountCreatedTopic,event.id(),event);
+        send(accountCreatedTopic,event.accountId().toString(),event);
     }
 
     public void sendAccountUpdatedEvent(AccountUpdatedEvent event){
-        send(accountUpdatedTopic,event.id(),event);
+        send(accountUpdatedTopic,event.id().toString(),event);
     }
 
     public void sendAccountBannedEvent(AccountBannedEvent event) {
-        send(accountBannedTopic, event.id(),event);
+        send(accountBannedTopic, event.id().toString(),event);
     }
 
     public void sendAccountDeletedEvent(AccountDeletedEvent event) {
-        send(accountDeletedTopic, event.id(),event);
+        send(accountDeletedTopic, event.id().toString(),event);
     }
 
     public void sendAccountUnbannedEvent(AccountUnbannedEvent event) {
-        send(accountUnbannedTopic, event.id(),event);
+        send(accountUnbannedTopic, event.id().toString(),event);
 
     }
 

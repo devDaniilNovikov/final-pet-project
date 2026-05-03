@@ -70,6 +70,13 @@ public class ProductEntity {
     @Column(name = "status",nullable = false)
     private ProductStatus status;
 
+    @PrePersist
+    public void prePersist(){
+        if (createdAt == null) {
+            createdAt = Instant.now();
+        }
+    }
+
 
 
     @Override
