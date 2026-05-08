@@ -60,7 +60,11 @@ public class OrderPersistenceService {
         );
         orderEntity.setOrderItemEntities(orderItemItems);
         orderRepository.save(orderEntity);
-        OutboxEntity outboxEntity = outboxMapper.toOutboxEntity(orderEntity, orderItemItems, orderCreatedEvent);
+        OutboxEntity outboxEntity = outboxMapper.toOutboxEntity(
+                orderEntity,
+                orderItemItems,
+                orderCreatedEvent
+        );
         outboxRepository.save(outboxEntity);
         log.info("Order={} saved, outbox entry created", orderEntity.getId());
         return new OrderResponse(orderEntity.getId(), orderEntity.getOrderStatus());
@@ -85,4 +89,6 @@ public class OrderPersistenceService {
                 .toList();
 
     }
+
+
 }

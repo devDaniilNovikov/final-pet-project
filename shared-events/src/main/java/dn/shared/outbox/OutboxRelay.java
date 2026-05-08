@@ -2,14 +2,14 @@ package dn.shared.outbox;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 @Slf4j
 @Component
@@ -27,7 +27,7 @@ public class OutboxRelay {
 
 
 
-    @Scheduled(fixedDelay = 1000)
+    @Scheduled(fixedDelay=1000)
     public void processInPOutboxStatus() {
         List<OutboxEntity> outboxes = outboxRepository.findPendingWithLock(PAGE_LIMIT);
         for (OutboxEntity entity : outboxes) {
@@ -37,8 +37,8 @@ public class OutboxRelay {
                                 entity.getTopic(),
                                 entity.getAggregateId().toString(),
                                 entity.getPayload())
-                        .get();
-            } catch (InterruptedException ex) {
+                        .get(5, TimeUnit.SECONDS);
+            } catch (InterruptedException  |TimeoutException ex) {
                 Thread.currentThread().interrupt();
                 outboxTransactionService.markAsFailed(entity);
                 throw new RuntimeException(ex);

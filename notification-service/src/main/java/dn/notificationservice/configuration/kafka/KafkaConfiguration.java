@@ -1,5 +1,6 @@
-package dn.notificationservice.configuration;
+package dn.notificationservice.configuration.kafka;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringSerializer;
@@ -14,6 +15,7 @@ import org.springframework.kafka.support.serializer.JsonSerializer;
 
 import java.util.Map;
 @Configuration
+@Slf4j
 public class KafkaConfiguration {
 
 
@@ -26,6 +28,15 @@ public class KafkaConfiguration {
     @Value("${custom.kafka.topics.account-deleted}")
     private String accountDeletedTopic;
 
+    @Value("${app.kafka.custom-topics.order-service-dlt}")
+    private String deadLetterTopic;
+
+    @Value("${app.kafka.replicas.count.value}")
+    private int replicasCount;
+
+    @Value("${app.kafka.partitions.count.value}")
+    private int partitionsCount;
+
 
     @Bean
     public DefaultKafkaProducerFactory<String, Object> defaultKafkaProducerFactory(KafkaProperties properties) {
@@ -36,7 +47,22 @@ public class KafkaConfiguration {
         props.put(ProducerConfig.RETRIES_CONFIG, 3);
         props.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
         props.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, 1);
+        props.forEach(log::info);
         return new DefaultKafkaProducerFactory<>(props);
+    }
+
+
+    private NewTopic createTopic(String topicName) {
+        return TopicBuilder.name(topicName)
+                .replicas(replicasCount)
+                .partitions(partitionsCount)
+                .configs(Map.of(ProducerConfig.ACKS_CONFIG, "all"))
+                .build();
+    }
+
+    @Bean
+    public NewTopic createDeadLetterTopic() {
+        return createTopic(deadLetterTopic);
     }
 
 
@@ -47,26 +73,17 @@ public class KafkaConfiguration {
 
     @Bean
     public NewTopic accountCreateTopic() {
-        return TopicBuilder.name(accountCreatedTopic)
-                .replicas(3)
-                .partitions(5)
-                .build();
+        return createTopic(accountCreatedTopic);
     }
 
     @Bean
     public NewTopic accountBannedTopic() {
-        return TopicBuilder.name(accountBannedTopic)
-                .replicas(3)
-                .partitions(5)
-                .build();
+        return createTopic(accountBannedTopic);
     }
 
     @Bean
     public NewTopic accountDeletedTopic() {
-        return TopicBuilder.name(accountDeletedTopic)
-                .replicas(3)
-                .partitions(5)
-                .build();
+        return createTopic(accountDeletedTopic);
     }
 
 

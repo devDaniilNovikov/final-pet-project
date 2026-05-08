@@ -2,6 +2,7 @@ package dn.productservice.service.product;
 
 
 import dn.productservice.dto.product.ListProductResponse;
+import dn.productservice.dto.product.ProductForOrderBatchResponse;
 import dn.productservice.dto.product.ProductRequest;
 import dn.productservice.dto.product.ProductResponse;
 import dn.productservice.entity.ProductEntity;
@@ -105,11 +106,12 @@ public class ProductService {
     }
 
     @Transactional
-    public Set<ProductResponse> findAllByIdsList(Set<UUID> ids) {
-        return productRepository.findAllByIdWithLock(ids.stream().toList())
+    public List<ProductForOrderBatchResponse> findAllByIdsList(Set<UUID> ids) {
+        return productRepository.findAllByIdWithLock(ids.stream()
+                        .toList())
                 .stream()
-                .map(productMapper::toResponse)
-                .collect(Collectors.toSet());
+                .map(productMapper::toOrderBatchRequest)
+                .toList();
     }
 
     @Transactional
@@ -171,5 +173,7 @@ public class ProductService {
         }
         return productMapper.toListResponse(productList);
     }
+
+
 
 }

@@ -1,6 +1,7 @@
 package dn.productservice.controller;
 
 import dn.productservice.dto.product.ListProductResponse;
+import dn.productservice.dto.product.ProductForOrderBatchResponse;
 import dn.productservice.dto.product.ProductRequest;
 import dn.productservice.dto.product.ProductResponse;
 import dn.productservice.exception.ErrorBody;
@@ -142,19 +143,21 @@ public class ProductController {
     @DeleteMapping
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteProducts(
-            @Parameter(description = "Список UUID товаров", required = true) @RequestParam List<String> ids) {
+            @Parameter(description = "Список UUID товаров", required = true)
+            @RequestParam List<String> ids) {
         productService.deleteByIds(ids);
     }
 
     @Operation(summary = "Получить товары по набору ID (batch)", description = "Используется order-service для проверки наличия товаров")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Набор найденных товаров",
-                    content = @Content(schema = @Schema(implementation = ProductResponse.class)))
+                    content = @Content(schema = @Schema(implementation = ProductForOrderBatchResponse.class)))
     })
     @PostMapping(BATCH)
-    public Set<ProductResponse> getProductsByIds(
+    public List<ProductForOrderBatchResponse> getProductsByIds(
             @io.swagger.v3.oas.annotations.parameters.RequestBody(
-                    description = "Набор UUID товаров", required = true)
+                    description = "Набор UUID товаров",
+                    required = true)
             @RequestBody Set<UUID> ids) {
         return productService.findAllByIdsList(ids);
     }

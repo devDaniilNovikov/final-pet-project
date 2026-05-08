@@ -3,7 +3,7 @@ import dn.orderservice.entity.OrderEntity;
 import dn.orderservice.enums.OrderStatus;
 import dn.orderservice.exception.OrderNotFoundException;
 import dn.orderservice.repository.OrderRepository;
-import dn.shared.outbox.*;
+
 import dn.shared.idempotency.ProcessedEventEntity;
 import dn.shared.idempotency.ProcessedEventRepository;
 import dn.shared.event.inventory.InventoryReservationFailedEvent;
@@ -17,6 +17,7 @@ import dn.shared.event.inventory.InventoryReservedEvent;
 import org.springframework.transaction.annotation.Transactional;
 import java.text.MessageFormat;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 @Component
 @RequiredArgsConstructor
@@ -38,18 +39,12 @@ public class OrderSagaListener {
 
     @KafkaListener(topics = "${app.kafka.events.item-reserved}")
     @Transactional
-    public void handleItemReserveEvent(InventoryReservedEvent event) {
-        if (!processedEventRepository.existsById(event.eventId())) {
-            UUID mappedOrderId = event.orderId();
-            OrderEntity order = orderRepository.findByIdWithLock(mappedOrderId)
-                    .orElseThrow(() -> new OrderNotFoundException(
-                            MessageFormat.format("Order with id: {0} not found", mappedOrderId)
-                    ));
-            order.setOrderStatus(OrderStatus.CONFIRMED);
-            orderRepository.save(order);
-            processEvent(event.eventId());
-            outboxService.createOutbox(order, event);
-        }
+    public void handleItemReservedEvent(InventoryReservedEvent event) {
+        processHandledEvent(
+                event.eventId(),
+                event.orderId(),
+                OrderStatus.CONFIRMED,
+                order -> outboxService.createOutbox(order,event));
     }
 
 
@@ -59,51 +54,52 @@ public class OrderSagaListener {
     @KafkaListener(topics = "${app.kafka.events.item-reserved-failed}")
     @Transactional
     public void handleItemReserveFailedEvent(InventoryReservationFailedEvent event) {
-        if (!processedEventRepository.existsById(event.eventId())) {
-            UUID mappedOrderId = event.orderId();
+        processHandledEvent(
+                event.eventId(),
+                event.orderId(),
+                OrderStatus.CANCELED,
+                order -> outboxService.createOutbox(order,event));
+        }
+
+
+    private void processHandledEvent(UUID eventId,
+                                     UUID mappedOrderId,
+                                     OrderStatus orderStatus,
+                                     Consumer<OrderEntity> consumer){
+        if (!processedEventRepository.existsById(eventId)) {
             OrderEntity order = orderRepository.findByIdWithLock(mappedOrderId)
                     .orElseThrow(() -> new OrderNotFoundException(
                             MessageFormat.format("Order with id: {0} not found", mappedOrderId)
                     ));
-            order.setOrderStatus(OrderStatus.CANCELED);
+            order.setOrderStatus(orderStatus);
             orderRepository.save(order);
-            processEvent(event.eventId());
-            outboxService.createOutbox(order, event);
+            processEvent(eventId);
+            consumer.accept(order);
         }
     }
 
     @KafkaListener(topics = "${app.kafka.events.payment-success}")
     @Transactional
     public void handlePaymentSuccessEvent(PaymentSuccessEvent event) {
-        if (!processedEventRepository.existsById(event.eventId())) {
-            UUID mappedOrderId = event.orderId();
-            OrderEntity order = orderRepository.findByIdWithLock(mappedOrderId)
-                    .orElseThrow(() -> new OrderNotFoundException(
-                            MessageFormat.format("Order with id: {0} not found", mappedOrderId)
-                    ));
-            order.setOrderStatus(OrderStatus.PAID);
-            orderRepository.save(order);
-            processEvent(event.eventId());
-            outboxService.createOutbox(order, event);
+        processHandledEvent(
+                event.eventId(),
+                event.orderId(),
+                OrderStatus.PAID,
+                order -> outboxService.createOutbox(order, event)
+        );
         }
-    }
+
 
     @KafkaListener(topics = "${app.kafka.events.payment-failed}")
     @Transactional
     public void handlePaymentFailedEvent(PaymentFailedEvent event) {
-        if (!processedEventRepository.existsById(event.eventId())) {
-            UUID mappedOrderId = event.orderId();
-            OrderEntity order = orderRepository.findByIdWithLock(mappedOrderId)
-                    .orElseThrow(() -> new OrderNotFoundException(
-                            MessageFormat.format("Order with id: {0} not found", mappedOrderId)
-                    ));
-            order.setOrderStatus(OrderStatus.CANCELED);
-            orderRepository.save(order);
-            processEvent(event.eventId());
-            outboxService.createOutbox(order, event);
-        }
+        processHandledEvent(
+                event.eventId(),
+                event.orderId(),
+                OrderStatus.CANCELED,
+                order -> outboxService.createOutbox(order, event)
+        );
     }
-
 
 }
 

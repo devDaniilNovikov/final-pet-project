@@ -1,0 +1,26 @@
+databaseChangeLog:
+  - changeSet:
+      id: 003-add-index-notifications-recipient-account-id
+      author: dn
+      comment: "Index for fetching notifications by recipient account"
+      changes:
+        - createIndex:
+            schemaName: marketplace
+            tableName: notifications
+            indexName: idx_notifications_recipient_account_id
+            columns:
+              - column:
+                  name: recipient_account_id
+
+  - changeSet:
+      id: 004-add-index-notifications-status
+      author: dn
+      comment: "Index for filtering notifications by delivery status"
+      changes:
+        - createIndex:
+            schemaName: marketplace
+            tableName: notifications
+            indexName: idx_notifications_status
+            columns:
+              - column:
+                  name: status

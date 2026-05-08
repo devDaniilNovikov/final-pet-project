@@ -15,8 +15,8 @@ public class ListAccountResponse {
     private List<AccountResponse> accounts;
 
     @Schema(description = "Количество страниц с аккаунтами")
-    private Integer totalPages;
+    private int totalPages;
 
     @Schema(description = "Количество элементов на одной странице")
-    private Integer totalElements;
+    private long totalElements;
 }

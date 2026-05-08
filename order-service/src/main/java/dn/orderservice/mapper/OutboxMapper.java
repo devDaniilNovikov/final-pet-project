@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
@@ -26,6 +27,7 @@ public class OutboxMapper {
                                        List<OrderItemEntity> items,
                                        String topic) {
         OrderCreatedEvent event = OrderCreatedEvent.builder()
+                .eventId(UUID.randomUUID())
                 .orderId(order.getId())
                 .buyerId(order.getBuyerId())
                 .totalPrice(order.getTotalPrice())

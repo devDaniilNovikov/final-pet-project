@@ -15,7 +15,9 @@ import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheConfig;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.text.MessageFormat;
@@ -56,11 +58,11 @@ public class AccountService {
         List<AccountEntity> accounts = accountRepository.findAllById(ids)
                 .stream()
                 .map(accountEntity -> {
-                    AccountEntity.BanInfo banInfo = new AccountEntity.BanInfo();
-                    banInfo.setIsBanned(true);
-                    banInfo.setUnbanDate(request.getUnbanDate());
-                    banInfo.setReason(request.getReason());
-                    accountEntity.setBanInfo(banInfo);
+                    applyBan(
+                            accountEntity,
+                            request.getReason(),
+                            request.getUnbanDate()
+                    );
                     return accountEntity;
                 })
                 .toList();
@@ -77,19 +79,52 @@ public class AccountService {
 
     }
 
+    @Transactional
+    @CacheEvict(value = "accounts", key = "'eventId:' + #id")
+    public void banAccount(String id, BanRequest banRequest) {
+        UUID accountId = IdMapper.mapToUUIDFromString(id);
+        accountRepository.findById(accountId)
+                .ifPresentOrElse(account->{
+                    Objects.requireNonNull(cacheManager.getCache("accounts"))
+                            .evict("username:" + account.getUsername());
+                    applyBan(account,banRequest.getReason(),banRequest.getUnbanDate());
+                    accountRepository.save(account);
+                    var accountBannedEvent = accountEventFactory.createAccountBannedEvent(
+                            account,banRequest.getReason(),banRequest.getUnbanDate()
+                    );
+                    outboxService.createOutbox(accountBannedEvent);
+                    var unbanDate = banRequest.getUnbanDate();
+                    log.info("Banned account with eventId={}, unban date={}",accountId,unbanDate);
+                },()->{
+                    throw new AccountNotFoundException(
+                            MessageFormat.format("Account with eventId={0} not found",accountId));
+                });
+    }
+
+
+    private void applyBan(AccountEntity accountEntity,
+                          String reason,
+                          Instant unbanDate) {
+        AccountEntity.BanInfo banInfo = new AccountEntity.BanInfo();
+        banInfo.setReason(reason);
+        banInfo.setUnbanDate(unbanDate);
+        banInfo.setIsBanned(true);
+        accountEntity.setBanInfo(banInfo);
+    }
+
 
 
 
     public ListAccountResponse findAll(int pageNumber, int pageSize) {
         ListAccountResponse listAccountResponse = new ListAccountResponse();
-        PageRequest pageRequest = PageRequest.of(pageNumber, pageSize);
-        List<AccountResponse> accountEntities =  accountRepository.findAll(pageRequest)
-                .stream()
-                .map(accountMapper::toResponse)
-                .toList();
+        Pageable pageable = PageRequest.of(pageNumber, pageSize);
+        Page<AccountEntity> pageRequest = accountRepository.findAll(pageable);
+        List<AccountResponse> accountEntities = pageRequest.stream()
+                        .map(accountMapper::toResponse)
+                        .toList();
         listAccountResponse.setAccounts(accountEntities);
-        listAccountResponse.setTotalPages(pageNumber);
-        listAccountResponse.setTotalElements(pageSize);
+        listAccountResponse.setTotalPages(pageRequest.getTotalPages());
+        listAccountResponse.setTotalElements(pageRequest.getTotalElements());
         return listAccountResponse;
     }
 
@@ -207,31 +242,6 @@ public class AccountService {
 
 
 
-    @Transactional
-    @CacheEvict(value = "accounts", key = "'eventId:' + #eventId")
-    public void banAccount(String id, BanRequest banRequest) {
-        UUID accountId = IdMapper.mapToUUIDFromString(id);
-        accountRepository.findById(accountId)
-                .ifPresentOrElse(account->{
-                    Objects.requireNonNull(cacheManager.getCache("accounts"))
-                            .evict("username:" + account.getUsername());
-                    AccountEntity.BanInfo banInfo = new AccountEntity.BanInfo();
-                    banInfo.setReason(banRequest.getReason());
-                    banInfo.setUnbanDate(banRequest.getUnbanDate());
-                    banInfo.setIsBanned(true);
-                    account.setBanInfo(banInfo);
-                    accountRepository.save(account);
-                    var accountBannedEvent = accountEventFactory.createAccountBannedEvent(
-                            account,banRequest.getReason(),banRequest.getUnbanDate()
-                    );
-                    outboxService.createOutbox(accountBannedEvent);
-                    var unbanDate = banInfo.getUnbanDate();
-                    log.info("Banned account with eventId={}, unban date={}",accountId, unbanDate);
-                },()->{
-                    throw new AccountNotFoundException(
-                            MessageFormat.format("Account with eventId={0} not found",accountId));
-                });
-    }
 
     private void attachAddresses(AccountEntity accountEntity) {
         if (accountEntity.getAddresses() == null) {

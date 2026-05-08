@@ -16,5 +16,5 @@ import java.util.UUID;
 @AllArgsConstructor
 public class NotificationMapDto {
 
-    private  Map<UUID, NotificationStatus> notificationStatusMap = new TreeMap<>();
+    private Map<UUID, NotificationStatus> notificationStatusMap;
 }

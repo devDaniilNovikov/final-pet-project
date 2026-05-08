@@ -12,7 +12,13 @@ import dn.shared.outbox.OutboxStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
+import org.springframework.web.context.support.ServletRequestHandledEvent;
+
+import java.io.PipedOutputStream;
+import java.text.MessageFormat;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -30,16 +36,18 @@ public class ProductOutboxService {
     private final ObjectMapper objectsMapper;
 
 
+
     public OutboxEntity createOutbox(OrderCreatedEvent orderCreatedEvent){
         try {
             var payload = InventoryReservedEvent.builder()
                     .orderId(orderCreatedEvent.orderId())
                     .eventId(orderCreatedEvent.eventId())
                     .build();
+            var mappedPayload = objectsMapper.writeValueAsString(payload);
             OutboxEntity outbox = OutboxEntity.builder()
                     .id(payload.eventId())
                     .aggregateId(payload.orderId())
-                    .payload(objectsMapper.writeValueAsString(payload))
+                    .payload(mappedPayload)
                     .topic(itemReservedEvent)
                     .outboxStatus(OutboxStatus.PENDING)
                     .build();
@@ -80,4 +88,7 @@ public class ProductOutboxService {
     private static void logException(JsonProcessingException ex){
         log.error("Can't serialize value cause: {}",ex.getMessage());
     }
+
+
+
 }

@@ -15,10 +15,12 @@ public class AccountEventListener {
     private final NotificationService notificationService;
 
 
-    @KafkaListener(topics = "${app.kafka.events.topics.account-created}",
+    @KafkaListener(
+            topics = "${app.kafka.events.topics.account-created}",
             groupId = "notification-service-group",
             concurrency = "true",
-    splitIterables = true)
+            splitIterables = true
+    )
     public void listenAccountCreatedEvent(AccountCreatedEvent accountCreatedEvent){
         UUID eventId = accountCreatedEvent.eventId();
         UUID accountId = accountCreatedEvent.accountId();
@@ -26,14 +28,16 @@ public class AccountEventListener {
         log.info("Received AccountCreatedEvent for accountId={}, eventId={}",accountCreatedEvent,eventId);
     }
 
-    @KafkaListener(topics = "${app.kafka.events.topics.account-deleted}",
+    @KafkaListener(
+            topics = "${app.kafka.events.topics.account-deleted}",
             groupId = "notification-service-group",
             concurrency = "true",
-            splitIterables = true)
+            splitIterables = true
+    )
     public void listenAccountDeletedEvent(AccountDeletedEvent accountDeletedEvent){
         UUID eventId = accountDeletedEvent.eventId();
         UUID accountId = accountDeletedEvent.id();
-        notificationService.createAccountCreatedNotification(eventId,accountId, accountDeletedEvent.username());
+        notificationService.createAccountDeletedNotification(eventId,accountId, accountDeletedEvent.username());
         log.info("Received AccountDeletedEvent for accountId={}, eventId={}",accountDeletedEvent,eventId);
     }
 

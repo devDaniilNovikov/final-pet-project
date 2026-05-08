@@ -1,6 +1,7 @@
 package dn.productservice.mapper;
 
 import dn.productservice.dto.product.ListProductResponse;
+import dn.productservice.dto.product.ProductForOrderBatchResponse;
 import dn.productservice.dto.product.ProductRequest;
 import dn.productservice.dto.product.ProductResponse;
 import dn.productservice.entity.ProductEntity;
@@ -55,4 +56,8 @@ public interface ProductMapper {
                 .toList());
         return response;
     }
+
+    @Mapping(source="id", target="productId")
+    @Mapping(source="name", target="productName")
+    ProductForOrderBatchResponse toOrderBatchRequest(ProductEntity product);
 }

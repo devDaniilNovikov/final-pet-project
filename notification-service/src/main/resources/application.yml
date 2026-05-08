@@ -11,7 +11,7 @@ server:
     include-binding-errors: always
 spring:
   config:
-    import: optional:file:.env
+    import: optional:file:notification-service/.env
   task:
     scheduling:
       pool:
@@ -21,8 +21,8 @@ spring:
 
   datasource:
     driver-class-name: org.postgresql.Driver
-    username: ${POSTGRES_USERNAME}
     password: ${POSTGRES_PASSWORD}
+    username: ${POSTGRES_USERNAME}
     url: ${POSTGRES_URL}
   liquibase:
     analytics-enabled: true
@@ -36,6 +36,9 @@ spring:
       hibernate:
         format_sql: true
         use_sql_comments: true
+        jdbc:
+          batch_size: 50
+        order_updates: true
 
   application:
     name: ${APPLICATION_NAME}
@@ -46,6 +49,7 @@ spring:
     redis:
       host: ${REDIS_HOST}
       port: ${REDIS_PORT}
+
   cache:
     redis:
       time-to-live: 30s
@@ -77,8 +81,18 @@ app:
       item-reserved: item.reserved
       payment-success: payment.success
       payment-failed: payment.failed
+      account-created: account.created
     custom-topics:
-     order-service-dlt: order.service.dlt
+      notification-service-dlt: notification.service.dlt
+    replicas:
+      count:
+        value: 5
+    partitions:
+      count:
+        value: 5
   http:
     client:
       product-service: ${HTTP_CLIENT_PRODUCT_SERVICE_URL}
+  schedule:
+    notification:
+      batch-size: 50

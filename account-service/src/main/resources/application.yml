@@ -12,11 +12,17 @@ server:
 spring:
   config:
     import: optional:file:.env
+  task:
+    scheduling:
+      pool:
+        size: 4
+    fixedDelay:
+      value: 5000
 
   datasource:
     driver-class-name: org.postgresql.Driver
-    password: ${POSTGRES_USERNAME}
-    username: ${POSTGRES_PASSWORD}
+    username: ${POSTGRES_USERNAME}
+    password: ${POSTGRES_PASSWORD}
     url: ${POSTGRES_URL}
   liquibase:
     analytics-enabled: true

@@ -25,8 +25,9 @@ public class AccountEventFactory {
                 .eventId(UUID.randomUUID())
                 .updatedTime(Instant.now())
                 .build();
-
     }
+
+
 
     public AccountBannedEvent createAccountBannedEvent(AccountEntity accountEntity,
                                                      String reason,
