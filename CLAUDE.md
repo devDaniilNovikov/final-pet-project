@@ -1,109 +1,109 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Этот файл предоставляет инструкции для Claude Code (claude.ai/code) при работе с кодом в данном репозитории.
 
-## Build & Run Commands
+## Команды сборки и запуска
 
 ```bash
-# Build all modules
+# Собрать все модули
 ./gradlew build
 
-# Run a specific service
+# Запустить конкретный сервис
 ./gradlew :account-service:bootRun
 ./gradlew :product-service:bootRun
 ./gradlew :order-service:bootRun
 ./gradlew :notification-service:bootRun
 
-# Run all tests
+# Запустить все тесты
 ./gradlew test
 
-# Run tests for a specific service
+# Запустить тесты конкретного сервиса
 ./gradlew :order-service:test
 
-# Run a single test class
+# Запустить один тестовый класс
 ./gradlew :order-service:test --tests "dn.orderservice.OrderServiceIT"
 ```
 
-## Project Structure
+## Структура проекта
 
-Multi-module Gradle (Kotlin DSL) project. Java 25, Spring Boot 3.5, virtual threads.
+Многомодульный Gradle-проект (Kotlin DSL). Java 25, Spring Boot 3.5, виртуальные потоки.
 
 ```
-shared-events/         # Shared library: events, outbox, idempotency infrastructure
-account-service/       # User profiles, bans, addresses
-product-service/       # Product catalog, inventory management
-order-service/         # Order orchestration, saga coordinator
-notification-service/  # Notifications via Kafka DLT + scheduled retry
+shared-events/         # Общая библиотека: события, outbox, инфраструктура идемпотентности
+account-service/       # Профили пользователей, баны, адреса
+product-service/       # Каталог товаров, управление инвентарём
+order-service/         # Оркестрация заказов, координатор саги
+notification-service/  # Уведомления через Kafka DLT + повторные попытки по расписанию
 ```
 
-All services depend on `shared-events` but never directly on each other.
+Все сервисы зависят от `shared-events`, но никогда не зависят напрямую друг от друга.
 
-## Architecture: Key Patterns
+## Архитектура: ключевые паттерны
 
 ### Transactional Outbox (`shared-events`)
-Events are written to the `marketplace.outbox` table within the same transaction as the business entity. `OutboxRelay` (scheduled every 1s) polls with `FOR UPDATE SKIP LOCKED` to send to Kafka without duplicate processing. Never publish to Kafka directly — always go through outbox.
+События записываются в таблицу `marketplace.outbox` в рамках той же транзакции, что и бизнес-сущность. `OutboxRelay` (запускается каждую 1с) опрашивает таблицу с `FOR UPDATE SKIP LOCKED` и отправляет в Kafka без дублирования. Никогда не публиковать в Kafka напрямую — только через outbox.
 
-Key rules:
-- `OutboxEntity.id` must be set to `outboxEvent.eventId()` (write-side idempotency — duplicate key prevents double-publish)
-- All `createOutbox` methods must be annotated `@Transactional(propagation = MANDATORY)` — they must always run within an existing transaction
-- `ExecutorService` bean and `ConcurrencyConfig` live only in `shared-events`, not in individual services
+Ключевые правила:
+- `OutboxEntity.id` должен быть установлен в `outboxEvent.eventId()` (идемпотентность на стороне записи — нарушение первичного ключа предотвращает двойную публикацию)
+- Все методы `createOutbox` должны быть аннотированы `@Transactional(propagation = MANDATORY)` — они всегда должны выполняться в рамках существующей транзакции
+- Бин `ExecutorService` и `ConcurrencyConfig` находятся только в `shared-events`, не в отдельных сервисах
 
-### Idempotency (`shared-events`)
-`EventProcessor.processEvent(UUID eventId)` inserts into `processed_events` table with `@Transactional(propagation = REQUIRES_NEW)`. Saga listeners call it first; on `DataIntegrityViolationException` (duplicate key) — the event was already processed, skip silently. `REQUIRES_NEW` is critical: prevents the duplicate-key exception from tainting the outer transaction.
+### Идемпотентность (`shared-events`)
+`EventProcessor.processEvent(UUID eventId)` вставляет запись в таблицу `processed_events` с `@Transactional(propagation = REQUIRES_NEW)`. Слушатели саги вызывают его первым; при `DataIntegrityViolationException` (дублирующийся ключ) — событие уже обработано, тихо пропустить. `REQUIRES_NEW` критически важен: предотвращает пометку внешней транзакции как rollback-only из-за исключения внутри.
 
-### Choreography-Based Saga (order ↔ product)
-Order lifecycle is driven by Kafka events across services:
-- `order.created` → ProductSagaListener reserves inventory → publishes `item.reserved` or `item.reserved.failed`
-- `item.reserved` → OrderSagaListener confirms order
-- `order.cancelled` → ProductSagaListener restores inventory
+### Хореографическая сага (order ↔ product)
+Жизненный цикл заказа управляется через Kafka-события между сервисами:
+- `order.created` → ProductSagaListener резервирует инвентарь → публикует `item.reserved` или `item.reserved.failed`
+- `item.reserved` → OrderSagaListener подтверждает заказ
+- `order.cancelled` → ProductSagaListener восстанавливает инвентарь
 
-Each saga listener uses `EventProcessor` (idempotency via `processed_events` table) to safely handle redelivery.
+Каждый слушатель саги использует `EventProcessor` (идемпотентность через таблицу `processed_events`) для безопасной обработки повторных доставок.
 
-### HTTP Sync Call
-Order-service calls product-service via HTTP for batch product queries (`ProductClient`). Connect and read timeouts configured via `app.http.client.connect-timeout` / `app.http.client.read-timeout`.
+### Синхронный HTTP-вызов
+Order-service обращается к product-service по HTTP для пакетных запросов товаров (`ProductClient`). Таймауты подключения и чтения настраиваются через `app.http.client.connect-timeout` / `app.http.client.read-timeout`.
 
-## Environment Variables
+## Переменные окружения
 
-All services share this pattern (configured in `application.yml` via env vars):
+Все сервисы используют следующий паттерн (настраивается в `application.yml` через переменные окружения):
 
-| Variable | Purpose |
-|----------|---------|
-| `SERVER_PORT` | HTTP port |
-| `POSTGRES_URL` | JDBC URL (each service has its own DB) |
-| `POSTGRES_USERNAME / PASSWORD` | DB credentials |
-| `REDIS_HOST / PORT / REDIS_CACHE_TTL_SECONDS` | Redis cache |
-| `KAFKA_BOOTSTRAP_SERVERS` | Kafka broker |
-| `LIQUIBASE_CHANGELOG_PATH` | Path to `db.changelog-master.yaml` |
-| `APPLICATION_NAME` | Spring app name |
-| `HTTP_CLIENT_PRODUCT_SERVICE_URL` | (order-service only) product-service base URL |
-| `APP_HTTP_CLIENT_CONNECT_TIMEOUT` | (order-service only) HTTP connect timeout ms |
-| `APP_HTTP_CLIENT_READ_TIMEOUT` | (order-service only) HTTP read timeout ms |
+| Переменная | Назначение |
+|------------|-----------|
+| `SERVER_PORT` | HTTP-порт |
+| `POSTGRES_URL` | JDBC URL (у каждого сервиса своя БД) |
+| `POSTGRES_USERNAME / PASSWORD` | Учётные данные БД |
+| `REDIS_HOST / PORT / REDIS_CACHE_TTL_SECONDS` | Redis-кэш |
+| `KAFKA_BOOTSTRAP_SERVERS` | Kafka-брокер |
+| `LIQUIBASE_CHANGELOG_PATH` | Путь к `db.changelog-master.yaml` |
+| `APPLICATION_NAME` | Имя Spring-приложения |
+| `HTTP_CLIENT_PRODUCT_SERVICE_URL` | (только order-service) базовый URL product-service |
+| `APP_HTTP_CLIENT_CONNECT_TIMEOUT` | (только order-service) таймаут подключения HTTP в мс |
+| `APP_HTTP_CLIENT_READ_TIMEOUT` | (только order-service) таймаут чтения HTTP в мс |
 
-## Database Conventions
+## Соглашения по базе данных
 
-- Schema: `marketplace` (all tables, including outbox and processed_events)
-- Migrations: Liquibase; `hibernate.ddl-auto: validate` — schema must exist before startup
-- Pessimistic locking used where needed: `@Lock(PESSIMISTIC_WRITE)` on JPA queries or native `FOR UPDATE SKIP LOCKED`
+- Схема: `marketplace` (все таблицы, включая outbox и processed_events)
+- Миграции: Liquibase; `hibernate.ddl-auto: validate` — схема должна существовать до запуска
+- Пессимистичная блокировка применяется там, где необходимо: `@Lock(PESSIMISTIC_WRITE)` в JPA-запросах или нативный `FOR UPDATE SKIP LOCKED`
 
-## Kafka Topics
+## Kafka-топики
 
-| Topic | Producer | Consumer |
-|-------|----------|----------|
+| Топик | Производитель | Потребитель |
+|-------|---------------|-------------|
 | `order.created` | order-service | product-service, notification-service |
 | `order.confirmed` / `order.paid` / `order.cancelled` | order-service | — |
 | `item.reserved` / `item.reserved.failed` | product-service | order-service |
-| `payment.success` / `payment.failed` | (future) | order-service |
-| `account.created` / `account.banned` / etc. | account-service | notification-service |
+| `payment.success` / `payment.failed` | (будущее) | order-service |
+| `account.created` / `account.banned` / и др. | account-service | notification-service |
 
-Dead Letter Topics (DLT) are configured for each consumer group.
+Для каждой consumer-группы настроены Dead Letter Topics (DLT).
 
-## Testing
+## Тестирование
 
-- Unit tests: plain JUnit 5 + AssertJ + Mockito
-- Integration tests: TestContainers (real PostgreSQL), named with `IT` suffix
-- Async assertions: use `Awaitility` (already a dependency in order-service)
-- Base class pattern: `AbstractProductIT` sets up shared TestContainers context
+- Юнит-тесты: чистый JUnit 5 + AssertJ + Mockito
+- Интеграционные тесты: TestContainers (реальный PostgreSQL), именуются с суффиксом `IT`
+- Асинхронные проверки: использовать `Awaitility` (уже есть в зависимостях order-service)
+- Паттерн базового класса: `AbstractProductIT` настраивает общий контекст TestContainers
 
 ## CodeGraph
 
-`.codegraph/` exists — use `codegraph_explore` (via Explore agent) for codebase questions. Use `codegraph_search` / `codegraph_callers` / `codegraph_impact` directly in main session for targeted symbol lookups before edits.
+`.codegraph/` существует — использовать `codegraph_explore` (через агент Explore) для вопросов по кодовой базе. Использовать `codegraph_search` / `codegraph_callers` / `codegraph_impact` напрямую в основной сессии для точечного поиска символов перед правками.
