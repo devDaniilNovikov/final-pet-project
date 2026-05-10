@@ -24,15 +24,10 @@ public class ProductSagaListener {
 
     private static final String PRODUCTS_NOT_FOUND_MESSAGE = "Products not found";
 
-    static {
-        Logger LOGGER;
-    }
-
     private final ProductRepository productRepository;
     private final ProductOutboxService productOutboxService;
     private final ProcessedEventRepository processedEventRepository;
     private final EventProcessor eventProcessor;
-
 
 
 
@@ -44,12 +39,13 @@ public class ProductSagaListener {
         if (!processedEventRepository.existsById(orderCreatedEvent.eventId())) {
             Map<UUID, Integer> productMap = orderCreatedEvent.orderItems()
                     .stream()
-                    .collect(Collectors.toConcurrentMap(
-                            OrderItemDto::getProductId,
-                            OrderItemDto::getQuantity)
+                    .collect(Collectors.toMap(
+                            OrderItemDto::productId,
+                            OrderItemDto::quantity)
                     );
             List<ProductEntity> productEntities = productRepository.findAllById(productMap.keySet());
             if (productEntities.size() != productMap.size()) {
+
                 productOutboxService.createOutbox(orderCreatedEvent, PRODUCTS_NOT_FOUND_MESSAGE);
                 return;
             }
@@ -86,9 +82,9 @@ public class ProductSagaListener {
         if (!processedEventRepository.existsById(event.eventId())) {
             Map<UUID, Integer> productMap = event.orders()
                     .stream()
-                    .collect(Collectors.toConcurrentMap(
-                            OrderItemDto::getProductId,
-                            OrderItemDto::getQuantity
+                    .collect(Collectors.toMap(
+                            OrderItemDto::productId,
+                            OrderItemDto::quantity
                     ));
             List<ProductEntity> productEntities = productRepository.findAllById(productMap.keySet());
             if (productEntities.size() != productMap.size()) {

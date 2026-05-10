@@ -52,7 +52,7 @@ public class AccountEventProducer {
 
 
     public void sendAccountCreatedEvent(AccountCreatedEvent event) {
-        send(accountCreatedTopic,event.accountId().toString(),event);
+        send(accountCreatedTopic,event.id().toString(),event);
     }
 
     public void sendAccountUpdatedEvent(AccountUpdatedEvent event){

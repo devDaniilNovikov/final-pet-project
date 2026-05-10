@@ -96,3 +96,9 @@ app:
   schedule:
     notification:
       batch-size: 50
+    fixedDelay:
+      value: 5000
+
+    concurrency:
+      timeout:
+        5

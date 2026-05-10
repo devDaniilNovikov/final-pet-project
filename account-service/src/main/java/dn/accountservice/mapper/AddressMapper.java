@@ -9,7 +9,7 @@ import org.mapstruct.Mapping;
 @Mapper(componentModel = "spring")
 public interface AddressMapper {
 
-    @Mapping(source = "account.id", target = "accountId")
+    @Mapping(source = "account.id", target = "id")
     AddressResponse toResponse(AddressEntity entity);
 
     @Mapping(target = "id", ignore = true)

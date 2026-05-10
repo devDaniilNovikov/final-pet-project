@@ -7,19 +7,12 @@ import dn.orderservice.dto.response.ProductResponse;
 import dn.orderservice.entity.OrderEntity;
 import dn.orderservice.entity.OrderItemEntity;
 import dn.orderservice.enums.OrderStatus;
-import dn.orderservice.exception.OrderNotFoundException;
-import dn.orderservice.exception.ProductNotFoundException;
-import dn.orderservice.mapper.OutboxMapper;
 import dn.orderservice.repository.OrderRepository;
 import dn.orderservice.service.MapBuilderService;
-import dn.shared.outbox.OutboxEntity;
-import dn.shared.outbox.OutboxRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
@@ -32,11 +25,8 @@ import java.util.UUID;
 public class OrderPersistenceService {
 
     private final OrderRepository orderRepository;
-    private final OutboxMapper outboxMapper;
-    private final OutboxRepository outboxRepository;
+    private final OutboxService outboxService;
 
-    @Value("${app.kafka.events.order-created}")
-    private String orderCreatedEvent;
 
     @Transactional
     public OrderResponse persistOrder(OrderRequest orderRequest,
@@ -60,12 +50,7 @@ public class OrderPersistenceService {
         );
         orderEntity.setOrderItemEntities(orderItemItems);
         orderRepository.save(orderEntity);
-        OutboxEntity outboxEntity = outboxMapper.toOutboxEntity(
-                orderEntity,
-                orderItemItems,
-                orderCreatedEvent
-        );
-        outboxRepository.save(outboxEntity);
+        outboxService.createOutbox(orderEntity);
         log.info("Order={} saved, outbox entry created", orderEntity.getId());
         return new OrderResponse(orderEntity.getId(), orderEntity.getOrderStatus());
     }

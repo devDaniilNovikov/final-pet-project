@@ -35,6 +35,7 @@ public class OutboxMapper {
                 .build();
 
         return OutboxEntity.builder()
+                .id(event.eventId())
                 .aggregateId(order.getId())
                 .topic(topic)
                 .payload(serialize(event))

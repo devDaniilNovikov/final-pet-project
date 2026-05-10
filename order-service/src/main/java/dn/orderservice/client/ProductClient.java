@@ -8,7 +8,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-@FunctionalInterface
+
 public interface ProductClient {
 
     String URL = "/batch";

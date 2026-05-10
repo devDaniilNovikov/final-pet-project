@@ -12,7 +12,7 @@ public class AccountEventFactory {
 
     public AccountCreatedEvent createAccountCreatedEvent(AccountEntity accountEntity){
         return AccountCreatedEvent.builder()
-                .accountId(accountEntity.getId())
+                .id(accountEntity.getId())
                 .username(accountEntity.getUsername())
                 .eventId(UUID.randomUUID())
                 .build();
@@ -30,8 +30,8 @@ public class AccountEventFactory {
 
 
     public AccountBannedEvent createAccountBannedEvent(AccountEntity accountEntity,
-                                                     String reason,
-                                                     Instant unbanDate){
+                                                      String reason,
+                                                      Instant unbanDate){
         return AccountBannedEvent.builder()
                 .id(accountEntity.getId())
                 .eventId(UUID.randomUUID())

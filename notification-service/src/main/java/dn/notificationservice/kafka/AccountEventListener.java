@@ -23,9 +23,9 @@ public class AccountEventListener {
     )
     public void listenAccountCreatedEvent(AccountCreatedEvent accountCreatedEvent){
         UUID eventId = accountCreatedEvent.eventId();
-        UUID accountId = accountCreatedEvent.accountId();
+        UUID accountId = accountCreatedEvent.id();
         notificationService.createAccountCreatedNotification(eventId,accountId, accountCreatedEvent.username());
-        log.info("Received AccountCreatedEvent for accountId={}, eventId={}",accountCreatedEvent,eventId);
+        log.info("Received AccountCreatedEvent for id={}, eventId={}",accountCreatedEvent,eventId);
     }
 
     @KafkaListener(
@@ -38,7 +38,7 @@ public class AccountEventListener {
         UUID eventId = accountDeletedEvent.eventId();
         UUID accountId = accountDeletedEvent.id();
         notificationService.createAccountDeletedNotification(eventId,accountId, accountDeletedEvent.username());
-        log.info("Received AccountDeletedEvent for accountId={}, eventId={}",accountDeletedEvent,eventId);
+        log.info("Received AccountDeletedEvent for id={}, eventId={}",accountDeletedEvent,eventId);
     }
 
 }

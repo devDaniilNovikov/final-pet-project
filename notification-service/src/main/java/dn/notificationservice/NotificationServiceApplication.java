@@ -12,7 +12,6 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 })
 @EnableCaching
 @EnableScheduling
-@EnableAsync
 @EnableKafka
 public class NotificationServiceApplication {
 

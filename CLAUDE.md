@@ -1,206 +1,109 @@
-# Claude Code Configuration for FinalPetProject
+# CLAUDE.md
 
-> AI-powered development workspace configuration
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Available Skills
+## Build & Run Commands
 
-Skills are loaded from `.claude/skills/` (symlinked from claude-code-java).
-
-To use a skill, load it first, then invoke with natural language:
-
-### 1. Git Commit Messages
-**Load**: `view .claude/skills/git-commit/SKILL.md`
-
-**Use cases**:
-- "Commit staged changes"
-- "Create commit for bug fix #123"
-- "Generate conventional commit message"
-
-**Example**:
-```
-> view .claude/skills/git-commit/SKILL.md
-> "Commit these changes"
-→ fix(plugin-loader): prevent NPE when directory missing
-```
-
-### 2. Test Quality (JUnit 5 + AssertJ)
-**Load**: `view .claude/skills/test-quality/SKILL.md`
-
-**Use cases**:
-- "Add tests for PluginManager.loadAll()"
-- "Review existing tests in PluginLoaderTest"
-- "Improve test coverage for lifecycle module"
-
-**Example**:
-```
-> view .claude/skills/test-quality/SKILL.md
-> "Add unit tests for ExtensionFactory with edge cases"
-→ Generates JUnit 5 tests with AssertJ assertions
-```
-
-### 3. Issue Triage
-**Load**: `view .claude/skills/issue-triage/SKILL.md`
-
-**Use cases**:
-- "Triage the last 10 issues"
-- "Check recent bug reports"
-- "Prioritize open feature requests"
-
-**Example**:
-```
-> view .claude/skills/issue-triage/SKILL.md
-> "Triage issues from final-pet-project, last 15"
-→ Categorizes, labels, suggests responses
-```
-
-## MCP Servers (Optional)
-
-MCP servers enhance capabilities with structured, token-efficient operations:
-
-| Server | Benefits |
-|--------|----------|
-| GitHub MCP | Issue management, PR creation |
-| Filesystem MCP | Structured file tree navigation |
-| Git MCP | Commit history, blame, log parsing |
-
-To configure MCP servers, run from claude-code-java:
 ```bash
-./scripts/configure-mcp.sh /path/to/this/project
+# Build all modules
+./gradlew build
+
+# Run a specific service
+./gradlew :account-service:bootRun
+./gradlew :product-service:bootRun
+./gradlew :order-service:bootRun
+./gradlew :notification-service:bootRun
+
+# Run all tests
+./gradlew test
+
+# Run tests for a specific service
+./gradlew :order-service:test
+
+# Run a single test class
+./gradlew :order-service:test --tests "dn.orderservice.OrderServiceIT"
 ```
 
-See [MCP documentation](https://modelcontextprotocol.io/) for details.
+## Project Structure
 
-## Common Workflows
+Multi-module Gradle (Kotlin DSL) project. Java 25, Spring Boot 3.5, virtual threads.
 
-### Daily Development Flow
-```bash
-# 1. Start session
-claude code .
-
-# 2. Work on feature/fix
-# ... make code changes ...
-
-# 3. Add tests (load test-quality skill)
-> view .claude/skills/test-quality/SKILL.md
-> "Add tests for new functionality in class X"
-
-# 4. Commit (load git-commit skill)
-> view .claude/skills/git-commit/SKILL.md
-> "Commit staged changes"
-
-# 5. Push and create PR
-> "Push changes and create PR for issue #123"
+```
+shared-events/         # Shared library: events, outbox, idempotency infrastructure
+account-service/       # User profiles, bans, addresses
+product-service/       # Product catalog, inventory management
+order-service/         # Order orchestration, saga coordinator
+notification-service/  # Notifications via Kafka DLT + scheduled retry
 ```
 
-### Weekly Maintenance
-```bash
-# Monday morning: Issue triage
-claude code .
+All services depend on `shared-events` but never directly on each other.
 
-> view .claude/skills/issue-triage/SKILL.md
-> "Triage the last 20 issues, categorize and prioritize"
+## Architecture: Key Patterns
 
-# Review suggested actions
-> "Apply labels and post responses as suggested"
-```
+### Transactional Outbox (`shared-events`)
+Events are written to the `marketplace.outbox` table within the same transaction as the business entity. `OutboxRelay` (scheduled every 1s) polls with `FOR UPDATE SKIP LOCKED` to send to Kafka without duplicate processing. Never publish to Kafka directly — always go through outbox.
 
-### Code Review
-```bash
-# Review PR
-> "Review PR #456 focusing on:
-   - Test coverage (use test-quality skill)
-   - Commit message quality (use git-commit skill)
-   - Code patterns and best practices"
-```
+Key rules:
+- `OutboxEntity.id` must be set to `outboxEvent.eventId()` (write-side idempotency — duplicate key prevents double-publish)
+- All `createOutbox` methods must be annotated `@Transactional(propagation = MANDATORY)` — they must always run within an existing transaction
+- `ExecutorService` bean and `ConcurrencyConfig` live only in `shared-events`, not in individual services
 
-## Token Budget Guidelines
+### Idempotency (`shared-events`)
+`EventProcessor.processEvent(UUID eventId)` inserts into `processed_events` table with `@Transactional(propagation = REQUIRES_NEW)`. Saga listeners call it first; on `DataIntegrityViolationException` (duplicate key) — the event was already processed, skip silently. `REQUIRES_NEW` is critical: prevents the duplicate-key exception from tainting the outer transaction.
 
-To optimize token usage:
+### Choreography-Based Saga (order ↔ product)
+Order lifecycle is driven by Kafka events across services:
+- `order.created` → ProductSagaListener reserves inventory → publishes `item.reserved` or `item.reserved.failed`
+- `item.reserved` → OrderSagaListener confirms order
+- `order.cancelled` → ProductSagaListener restores inventory
 
-1. **Load skills once per session** - Skills stay in context
-2. **Batch operations** - Process multiple issues/tests together
-3. **Use MCP when available** - More efficient than bash commands
-4. **Targeted file reads** - Only read files you need
+Each saga listener uses `EventProcessor` (idempotency via `processed_events` table) to safely handle redelivery.
 
-### Target Token Usage
+### HTTP Sync Call
+Order-service calls product-service via HTTP for batch product queries (`ProductClient`). Connect and read timeouts configured via `app.http.client.connect-timeout` / `app.http.client.read-timeout`.
 
-| Task | Without Skills | With Skills | Savings |
-|------|----------------|-------------|---------|
-| Commit message | ~800 tokens | ~300 tokens | 62% |
-| Add 3 tests | ~2000 tokens | ~800 tokens | 60% |
-| Triage 10 issues | ~5000 tokens | ~2000 tokens | 60% |
+## Environment Variables
 
-## What to Avoid
+All services share this pattern (configured in `application.yml` via env vars):
 
-1. **Don't reload skills repeatedly** - Load once per session
-2. **Don't process issues one-by-one** - Batch them
-3. **Don't over-engineer** - Use skills for appropriate tasks
-4. **Don't ignore skill guidelines** - They're optimized for tokens
+| Variable | Purpose |
+|----------|---------|
+| `SERVER_PORT` | HTTP port |
+| `POSTGRES_URL` | JDBC URL (each service has its own DB) |
+| `POSTGRES_USERNAME / PASSWORD` | DB credentials |
+| `REDIS_HOST / PORT / REDIS_CACHE_TTL_SECONDS` | Redis cache |
+| `KAFKA_BOOTSTRAP_SERVERS` | Kafka broker |
+| `LIQUIBASE_CHANGELOG_PATH` | Path to `db.changelog-master.yaml` |
+| `APPLICATION_NAME` | Spring app name |
+| `HTTP_CLIENT_PRODUCT_SERVICE_URL` | (order-service only) product-service base URL |
+| `APP_HTTP_CLIENT_CONNECT_TIMEOUT` | (order-service only) HTTP connect timeout ms |
+| `APP_HTTP_CLIENT_READ_TIMEOUT` | (order-service only) HTTP read timeout ms |
 
-## Project-Specific Notes
+## Database Conventions
 
-### Build Commands
-```bash
-# Maven
-mvn clean install
-mvn test
-mvn jacoco:report
+- Schema: `marketplace` (all tables, including outbox and processed_events)
+- Migrations: Liquibase; `hibernate.ddl-auto: validate` — schema must exist before startup
+- Pessimistic locking used where needed: `@Lock(PESSIMISTIC_WRITE)` on JPA queries or native `FOR UPDATE SKIP LOCKED`
 
-# Check test coverage
-open target/site/jacoco/index.html
-```
+## Kafka Topics
 
-### Testing Strategy
-- Target: 80%+ coverage on core logic
-- Focus: Business logic, not boilerplate
-- Tools: JUnit 5, AssertJ, Mockito
+| Topic | Producer | Consumer |
+|-------|----------|----------|
+| `order.created` | order-service | product-service, notification-service |
+| `order.confirmed` / `order.paid` / `order.cancelled` | order-service | — |
+| `item.reserved` / `item.reserved.failed` | product-service | order-service |
+| `payment.success` / `payment.failed` | (future) | order-service |
+| `account.created` / `account.banned` / etc. | account-service | notification-service |
 
-### Commit Guidelines
-- Follow Conventional Commits
-- Reference issues: "Fixes #123"
-- Keep subject under 50 chars
+Dead Letter Topics (DLT) are configured for each consumer group.
 
-### Issue Management
-- Label all new issues within 48h
-- Respond to questions within 1 week
-- Close stale (>90 days, no activity) issues
+## Testing
 
-## Resources
+- Unit tests: plain JUnit 5 + AssertJ + Mockito
+- Integration tests: TestContainers (real PostgreSQL), named with `IT` suffix
+- Async assertions: use `Awaitility` (already a dependency in order-service)
+- Base class pattern: `AbstractProductIT` sets up shared TestContainers context
 
-- [claude-code-java](https://github.com/decebals/claude-code-java) - Skill repository
-- [Claude Code Docs](https://code.claude.com/docs) - Official documentation
-- [Conventional Commits](https://www.conventionalcommits.org/) - Commit format
-- [AssertJ Docs](https://assertj.github.io/doc/) - Assertion library
+## CodeGraph
 
-## Tips & Tricks
-
-### Quick skill loading
-```bash
-# Add to your shell alias
-alias cc-commit='echo "view .claude/skills/git-commit/SKILL.md"'
-alias cc-test='echo "view .claude/skills/test-quality/SKILL.md"'
-alias cc-triage='echo "view .claude/skills/issue-triage/SKILL.md"'
-```
-
-### Session continuity
-```bash
-# Save context at end of session
-> "Summarize what we worked on today for next session"
-
-# Resume next day
-> "Review yesterday's summary and continue"
-```
-
-### Measure your wins
-```bash
-# Track token usage
-> /token usage
-
-# Compare before/after adopting skills
-# Document savings in team retrospectives
-```
-
----
-
-**Last updated**: 2026-05-02
-**claude-code-java version**: v0.1
+`.codegraph/` exists — use `codegraph_explore` (via Explore agent) for codebase questions. Use `codegraph_search` / `codegraph_callers` / `codegraph_impact` directly in main session for targeted symbol lookups before edits.

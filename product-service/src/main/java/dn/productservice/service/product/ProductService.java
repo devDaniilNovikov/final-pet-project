@@ -6,11 +6,7 @@ import dn.productservice.dto.product.ProductForOrderBatchResponse;
 import dn.productservice.dto.product.ProductRequest;
 import dn.productservice.dto.product.ProductResponse;
 import dn.productservice.entity.ProductEntity;
-import dn.productservice.event.ProductCreateEvent;
-import dn.productservice.event.ProductDeletedEvent;
-import dn.productservice.event.ProductUpdatedEvent;
 import dn.productservice.exception.ProductNotFoundException;
-import dn.productservice.service.EventService;
 import dn.productservice.utils.IdConverter;
 import dn.productservice.mapper.ProductImageMapper;
 import dn.productservice.mapper.ProductMapper;
@@ -23,13 +19,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.text.MessageFormat;
-import java.time.Instant;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -40,11 +34,14 @@ public class ProductService {
     private static final int TOTAL_PAGES_COUNT = 0;
 
 
+
+
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
     private final ProductMapper productMapper;
     private final ProductImageMapper productImageMapper;
-    private final EventService eventService;
+    private final ProductOutboxService productOutboxService;
+    private final ProductEventFactory productEventFactory;
 
 
 
@@ -66,10 +63,8 @@ public class ProductService {
         }
 
         productRepository.save(productEntity);
-        eventService.sendProductCreatedEvent(ProductCreateEvent.builder()
-                        .id(productEntity.getId())
-                        .name(productRequest.getName())
-                        .build());
+        var event = productEventFactory.createProductCreateEvent(productEntity);
+        productOutboxService.createOutbox(event);
         return productMapper.toResponse(productEntity);
     }
 
@@ -82,12 +77,8 @@ public class ProductService {
                 .ifPresentOrElse(product -> {
             productMapper.updateEntity(productRequest, product);
             productRepository.save(product);
-            eventService.sendProductUpdatedEvent(ProductUpdatedEvent
-                            .builder()
-                            .id(productId)
-                            .name(productRequest.getName())
-                            .updatedTime(Instant.now())
-                            .build());
+            var event = productEventFactory.createProductUpdateEvent(product);
+            productOutboxService.createOutbox(event);
         },() -> { throw new ProductNotFoundException(MessageFormat.format(
                             "Product with id={0} not found", productId
                     ));
@@ -100,12 +91,13 @@ public class ProductService {
                         MessageFormat.format("Product with id={0} not found", productId))));
     }
 
+    @Transactional(readOnly = true)
     public ListProductResponse findAll(int page, int size) {
          var pageable = PageRequest.of(page, size);
          return productMapper.toListResponse(productRepository.findAll(pageable));
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     public List<ProductForOrderBatchResponse> findAllByIdsList(Set<UUID> ids) {
         return productRepository.findAllByIdWithLock(ids.stream()
                         .toList())
@@ -117,15 +109,13 @@ public class ProductService {
     @Transactional
     public void deleteById(String productId) {
         UUID uuid = IdConverter.fromString(productId);
-        if (!productRepository.existsById(uuid)) {
-            throw new ProductNotFoundException(MessageFormat.format(
-                    "Product with id={0} not found", productId)
-            );
-        }
-        productRepository.deleteById(uuid);
-        eventService.sendProductDeletedEvent(ProductDeletedEvent.builder()
-                        .productId(productId)
-                        .build());
+        var productForDelete = productRepository.findById(uuid)
+                .orElseThrow(() -> new ProductNotFoundException(
+                        MessageFormat.format("Product with id={0} not found", uuid)
+                ));
+        productRepository.deleteById(productForDelete.getId());
+        var event = productEventFactory.createProductDeletedEvent(productForDelete);
+        productOutboxService.createOutbox(event);
     }
 
     @Transactional
@@ -135,11 +125,12 @@ public class ProductService {
         if (existing.isEmpty()) {
             return;
         }
-        productRepository.deleteAllByIdInBatch(uuids);
-        List<String> deletedIds = existing.stream().map(p -> p.getId().toString()).toList();
-        eventService.sendProductDeletedEvent(ProductDeletedEvent.builder()
-                .ids(deletedIds)
-                .build());
+        List<UUID> idsOfExistingProducts = existing.stream()
+                        .map(ProductEntity::getId)
+                        .toList();
+        productRepository.deleteAllByIdInBatch(idsOfExistingProducts);
+        var events = productEventFactory.createProductDeletedEvents(existing);
+        productOutboxService.createOutbox(events);
     }
 
     @Transactional(readOnly = true)

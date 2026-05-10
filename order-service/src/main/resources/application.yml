@@ -82,3 +82,5 @@ app:
   http:
     client:
       product-service: ${HTTP_CLIENT_PRODUCT_SERVICE_URL}
+      connect-timeout: 5000
+      read-timeout: 5000

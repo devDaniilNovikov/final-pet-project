@@ -37,7 +37,9 @@ public interface NotificationRepository extends JpaRepository<NotificationEntity
 
 
     List<NotificationEntity> findAllByNotificationStatus(Pageable pageable,
-                                                         NotificationStatus status);
+                                                         @Param("status") NotificationStatus status);
+
+
 
 
 

@@ -1,5 +1,6 @@
 package dn.shared.event.account;
 
+import dn.shared.outbox.OutboxableEvent;
 import lombok.Builder;
 
 import java.time.Instant;
@@ -9,5 +10,5 @@ import java.util.UUID;
 public record AccountBannedEvent(UUID id,
                                  UUID eventId,
                                  Instant unbanDate,
-                                 String reason) {
+                                 String reason) implements OutboxableEvent {
 }
